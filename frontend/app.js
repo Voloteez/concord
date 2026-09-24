@@ -317,14 +317,14 @@
     return `${topbar(`<a class="toplink" href="#/upload">Check your own filing</a>`)}
     <main class="landing">
       <!-- One screen, one sentence, one button: the judge should understand the product before scrolling and be inside the demo on the first click. -->
-      <span class="eyebrow rise" style="--i:0"><span class="dot"></span>For listed companies that file in two languages</span>
-      <h1 class="rise" style="--i:1">Don't tell the market one thing in English and another in Chinese.</h1>
-      <p class="lede rise" style="--i:2">Every HKEX announcement goes out twice, checked by eye, signed by one company secretary. Concord reads both versions, finds every number, date and sentence that disagrees, and hands you the sign-off for the board pack.</p>
+      <span class="eyebrow rise" style="--i:0"><span class="dot"></span>For listed companies that publish in more than one language</span>
+      <h1 class="rise" style="--i:1">Your filing goes out in two languages. Make sure they say the same thing.</h1>
+      <p class="lede rise" style="--i:2">Companies listed on HKEX, TSX, Euronext or SIX publish every announcement twice, and the two versions are checked by eye. Concord compares them, flags every number, date and sentence that differs, and gives the company secretary a report to sign.</p>
       <div class="ctas rise" style="--i:3">
         <button class="pill primary lg" data-act="sample" ${u.busy ? 'disabled' : ''}>${u.busy ? 'Opening…' : 'Open the demo'} ${icon.arrowR || ''}</button>
         <a class="pill lg" href="#/upload">Check your own filing</a>
       </div>
-      <p class="fine rise" style="--i:4">Any language pair. HKEX, TSX, Euronext, SIX.</p>
+      <p class="fine rise" style="--i:4">Any language pair. English and Chinese in the demo.</p>
       ${u.error ? `<p class="formerr" role="alert">${esc(u.error)}</p>` : ''}
     </main>`;
   }
