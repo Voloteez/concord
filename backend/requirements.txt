@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+anthropic>=0.117
+python-multipart
+sse-starlette
+pymupdf
+cn2an
