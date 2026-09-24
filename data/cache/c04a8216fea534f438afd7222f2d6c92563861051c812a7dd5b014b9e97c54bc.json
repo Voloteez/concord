@@ -1,0 +1,1 @@
+{"judgments": [{"pair_id": "p_002", "verdict": "MEANING_SHIFT", "en_span": "The Company shall procure the payment", "zh_span": "本集團須以內部資源促使支付代價", "explanation": "EN attributes obligation to the Company, ZH attributes it to the Group, which are not equivalent entities.", "confidence": 0.9}]}

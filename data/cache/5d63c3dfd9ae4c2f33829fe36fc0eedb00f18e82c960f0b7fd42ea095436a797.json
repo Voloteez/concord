@@ -1,0 +1,1 @@
+{"pairs": [{"en_ids": ["en_s65"], "zh_ids": ["zh_s62"], "score": 0.95}, {"en_ids": ["en_s66"], "zh_ids": ["zh_s63"], "score": 0.95}, {"en_ids": ["en_s67", "en_s68"], "zh_ids": ["zh_s64"], "score": 0.95}, {"en_ids": ["en_s69"], "zh_ids": ["zh_s65"], "score": 0.95}, {"en_ids": ["en_s70"], "zh_ids": ["zh_s66"], "score": 0.95}], "unpaired_en": [], "unpaired_zh": []}

@@ -19,10 +19,16 @@ import extract
 import pipeline
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RUNS_DIR = os.path.join(BASE_DIR, "data", "runs")
+# Serverless (Vercel): the bundle is read-only and there is no background thread that
+# outlives the request, so runs live in /tmp and the pipeline runs inside the POST.
+SERVERLESS = bool(os.environ.get("VERCEL") or os.environ.get("CONCORD_SYNC"))
+RUNS_DIR = os.path.join("/tmp", "concord", "runs") if SERVERLESS else os.path.join(BASE_DIR, "data", "runs")
+pipeline.RUNS_DIR = RUNS_DIR
 SAMPLE_DIR = os.path.join(BASE_DIR, "data", "sample")
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 os.makedirs(RUNS_DIR, exist_ok=True)
+if SERVERLESS:
+    os.environ.setdefault("CONCORD_MIN_STAGE_S", "0")
 
 STATUSES = {"unreviewed", "confirmed", "dismissed", "unresolved"}
 DISMISS_REASONS = {"false_positive", "acceptable_variation", "will_fix_in_source"}
@@ -116,8 +122,24 @@ def _start(run_id: str, authoritative: str | None) -> None:
             ev["detail"] = detail
         st.push(ev)
 
+    if SERVERLESS:
+        return None  # caller runs it inline via _run_sync
     threading.Thread(target=pipeline.run_pipeline, args=(run_id, on_progress), daemon=True,
                      name=f"pipeline-{run_id}").start()
+
+
+async def _run_sync(run_id: str, sample: bool = False) -> dict:
+    """Serverless: run the whole pipeline inside the request and return the run object."""
+    st = _state(run_id, create=True)
+
+    def on_progress(stage, label, done=False, detail=None):
+        st.push({"stage": stage, "label": label, "done": bool(done), "detail": detail})
+
+    await asyncio.to_thread(pipeline.run_pipeline, run_id, on_progress)
+    run = _load_run(run_id)
+    run["sample"] = sample
+    run["local"] = True  # tells the frontend to keep this run client-side
+    return run
 
 
 def _new_run_id() -> str:
@@ -163,6 +185,8 @@ async def create_run(en: UploadFile = File(...), zh: UploadFile = File(...),
         with open(os.path.join(rd, name), "wb") as f:
             f.write(data)
     _start(rid, auth)
+    if SERVERLESS:
+        return await _run_sync(rid)
     return {"run_id": rid}
 
 
@@ -177,6 +201,8 @@ async def create_sample_run():
     shutil.copyfile(src_en, os.path.join(rd, "en.pdf"))
     shutil.copyfile(src_zh, os.path.join(rd, "zh.pdf"))
     _start(rid, None)
+    if SERVERLESS:
+        return await _run_sync(rid, sample=True)
     return {"run_id": rid}
 
 
@@ -215,7 +241,7 @@ async def run_events(run_id: str, request: Request):
                 i = len(st.events)
                 finished = st.finished
             for ev in batch:
-                yield {"event": "progress", "data": json.dumps(ev, ensure_ascii=False)}
+                yield {"data": json.dumps(ev, ensure_ascii=False)}
                 if ev.get("stage") == "done" and ev.get("done"):
                     return
             if finished:
@@ -323,6 +349,36 @@ async def run_report(run_id: str):
         print(f"[api] report.render_report unavailable: {e}")
         html_out = _fallback_report(run)
     return HTMLResponse(html_out)
+
+
+@app.post("/api/report")
+async def report_from_body(request: Request):
+    """Render the sign-off report for a run object the client holds (serverless mode)."""
+    try:
+        run = await request.json()
+    except Exception:
+        raise ApiError(400, "body must be the run JSON")
+    if not isinstance(run, dict) or "findings" not in run:
+        raise ApiError(400, "body must be a run object")
+    try:
+        import report
+        return HTMLResponse(report.render_report(run))
+    except Exception as e:
+        print(f"[api] report.render_report unavailable: {e}")
+        return HTMLResponse(_fallback_report(run))
+
+
+@app.get("/api/sample/page/{lang}/{n}.png")
+async def sample_page_png(lang: str, n: int):
+    if lang not in ("en", "zh"):
+        raise ApiError(400, "lang must be en or zh")
+    out = os.path.join("/tmp", "concord", "sample_pages", f"{lang}_{n}.png")
+    if not os.path.exists(out):
+        try:
+            await asyncio.to_thread(extract.render_page_png, os.path.join(SAMPLE_DIR, f"{lang}.pdf"), n, out, 1.5)
+        except ValueError as e:
+            raise ApiError(404, str(e))
+    return FileResponse(out, media_type="image/png", headers={"Cache-Control": "max-age=3600"})
 
 
 @app.get("/api/runs/{run_id}/export.json")

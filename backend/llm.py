@@ -140,8 +140,11 @@ def call_json(*, system: str, user: str, schema: dict, model: str = FAST,
         raise RuntimeError(f"call_json failed for model {model}: {last_err or 'no valid tool_use returned'}")
     if path:
         try:
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump(result, f, ensure_ascii=False)
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, ensure_ascii=False)
+            except OSError:
+                pass  # read-only bundle (serverless): reads still work, writes are best-effort
         except Exception:
             pass
     return result

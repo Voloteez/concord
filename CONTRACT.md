@@ -253,3 +253,14 @@ def run_pipeline(run_id: str, on_progress) -> None
 
 A finding's `section` is the EN heading of its section (fall back to ZH heading).
 Every finding carries `pair_id` (or `sentence_id` for unaligned omissions) so classify can dedupe.
+
+## Serverless mode (Vercel)
+
+`api/index.py` exposes the same FastAPI app. With `VERCEL` or `CONCORD_SYNC=1` set:
+runs live under `/tmp/concord/runs`, `POST /api/runs` and `POST /api/runs/sample` run the
+pipeline inside the request and return the FULL run object with `"local": true` (and
+`"sample": true` for the demo pair). The frontend then keeps that run client-side
+(localStorage), applies decisions locally, renders the report via `POST /api/report`
+(body = run object) and loads page thumbnails from `/api/sample/page/{lang}/{n}.png` for the
+sample pair. LLM responses for the demo are shipped in `data/cache/` so the hosted demo
+replays without network; new uploads call the models live (needs `ANTHROPIC_API_KEY`).

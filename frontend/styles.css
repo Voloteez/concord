@@ -41,7 +41,7 @@ button:disabled { cursor: not-allowed; }
 a { color: inherit; }
 a.pill, a.wordmark { text-decoration: none; }
 :focus-visible { outline: 2px solid var(--violet-soft); outline-offset: 2px; border-radius: 999px; }
-[lang="zh-Hant"] { font-family: var(--cjk); }
+[lang^="zh"], [lang^="ja"], [lang^="ko"] { font-family: var(--cjk); }
 .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 .num { font-variant-numeric: tabular-nums; }
 .faint { color: var(--faint); }
@@ -208,7 +208,7 @@ kbd {
 .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .col .colh { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .passage { background: var(--surface); border-radius: var(--radius); padding: 18px 20px; font-size: 15px; line-height: 1.7; color: var(--ink); min-height: 96px; }
-.passage[lang="zh-Hant"] { font-size: 15.5px; line-height: 1.85; }
+.passage[lang^="zh"], .passage[lang^="ja"], .passage[lang^="ko"] { font-size: 15.5px; line-height: 1.85; }
 .passage mark { background: var(--violet-tint); color: var(--ink); box-shadow: inset 0 -2px 0 var(--violet); padding: 1px 0; border-radius: 2px; }
 .passage .absent { display: block; margin-top: 8px; font-size: 12.5px; color: var(--faint); font-family: var(--sans); }
 .expl { margin-top: 22px; font-size: 15px; color: var(--ink); line-height: 1.55; }

@@ -67,6 +67,19 @@
     : /(?:^|[^a-z])(en|eng|english)(?:[^a-z]|$)/i.test(name) ? 'EN' : 'PDF';
   const toast = msg => { state.toast = msg; renderToast(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { state.toast = null; renderToast(); }, 2600); };
 
+  // ---------- Local runs (serverless mode: the server returns the whole run and keeps nothing) ----------
+  const localRuns = {}; const LS = 'concord:run:'; let pendingSim = null; const reportCache = {};
+  function saveLocal(run) { localRuns[run.run_id] = run; try { localStorage.setItem(LS + run.run_id, JSON.stringify(run)); } catch { /* quota / private mode */ } }
+  function loadLocal(id) { if (localRuns[id]) return localRuns[id]; try { const raw = localStorage.getItem(LS + id); if (raw) return (localRuns[id] = JSON.parse(raw)); } catch { /* ignore */ } return null; }
+  const absorb = res => { if (res && res.status && Array.isArray(res.findings)) { saveLocal(res); pendingSim = res.run_id; return { run_id: res.run_id }; } return res; };
+
+  // ---------- Languages (slots are en/zh internally; names come from detection) ----------
+  const DEFAULT_LANG = { en: { code: 'en', name: 'English', script: 'Latn' }, zh: { code: 'zh-Hant', name: 'Chinese (Traditional)', script: 'Hant' } };
+  const langOf = slot => (state.run && state.run.meta && state.run.meta.languages && state.run.meta.languages[slot]) || DEFAULT_LANG[slot];
+  const langName = slot => langOf(slot).name || DEFAULT_LANG[slot].name;
+  const langCode = slot => langOf(slot).code || DEFAULT_LANG[slot].code;
+  const isCJK = slot => /^(zh|ja|ko)/.test(langCode(slot));
+
   // ---------- API ----------
   async function apiJSON(path, opts) {
     const r = await fetch(path, opts);
@@ -75,13 +88,18 @@
     return body;
   }
   const api = {
-    getRun: id => FIXTURE ? apiJSON('../fixtures/findings.json', { cache: 'no-store' }) : apiJSON(`${API}/runs/${id}`, { cache: 'no-store' }),
-    createRun: form => apiJSON(`${API}/runs`, { method: 'POST', body: form }),                 // multipart: en, zh, authoritative
-    sample: () => apiJSON(`${API}/runs/sample`, { method: 'POST' }),
-    patch: (id, fid, body) => FIXTURE
-      ? Promise.resolve({ ...state.run.findings.find(f => f.id === fid), ...body })
-      : apiJSON(`${API}/runs/${id}/findings/${fid}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
-    pageUrl: (id, lang, n) => `${API}/runs/${id}/page/${lang}/${n}.png`,
+    getRun: id => { const l = loadLocal(id); if (l) return Promise.resolve(l);
+      return FIXTURE ? apiJSON('../fixtures/findings.json', { cache: 'no-store' }) : apiJSON(`${API}/runs/${id}`, { cache: 'no-store' }); },
+    createRun: form => apiJSON(`${API}/runs`, { method: 'POST', body: form }).then(absorb),   // multipart: en, zh, authoritative
+    sample: () => apiJSON(`${API}/runs/sample`, { method: 'POST' }).then(absorb),
+    patch: (id, fid, body) => {
+      const l = loadLocal(id);
+      if (l) { const f = l.findings.find(x => x.id === fid); if (f) { Object.assign(f, body); if (f.status !== 'dismissed') f.dismiss_reason = null; } saveLocal(l); return Promise.resolve({ ...f }); }
+      return FIXTURE
+        ? Promise.resolve({ ...state.run.findings.find(f => f.id === fid), ...body })
+        : apiJSON(`${API}/runs/${id}/findings/${fid}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    },
+    pageUrl: (id, lang, n) => { const l = loadLocal(id); return l && l.sample ? `${API}/sample/page/${lang}/${n}.png` : `${API}/runs/${id}/page/${lang}/${n}.png`; },
     reportUrl: id => `${API}/runs/${id}/report`,
     exportUrl: id => `${API}/runs/${id}/export.json`,
     eventsUrl: id => `${API}/runs/${id}/events`,
@@ -130,6 +148,7 @@
     try {
       const run = await api.getRun(id);
       if (state.route.id !== id) return;
+      if (pendingSim === id && run.status === 'done') { pendingSim = null; simulateProgress(id, run); return; }
       applyRun(run);
       if (run.status === 'running' || run.status === 'queued' || !run.status) openStream(id);
       render();
@@ -157,10 +176,9 @@
     if (FIXTURE || !('EventSource' in window)) { startPolling(id); return; }
     try {
       es = new EventSource(api.eventsUrl(id));
-      es.onmessage = ev => {
-        let d; try { d = JSON.parse(ev.data); } catch { return; }
-        onProgress(id, d);
-      };
+      const handle = ev => { let d; try { d = JSON.parse(ev.data); } catch { return; } onProgress(id, d); };
+      es.onmessage = handle;
+      es.addEventListener('progress', handle);
       es.onerror = () => { stopStream(false); startPolling(id); };
     } catch { startPolling(id); }
   }
@@ -180,6 +198,26 @@
       p.error = d.label || d.error || 'The run failed.'; stopStream();
     }
     render();
+  }
+  // Serverless runs arrive finished; step through the stages anyway so the reviewer sees what ran.
+  function simulateProgress(id, run) {
+    const p = state.progress; state.run = { run_id: id, status: 'running' };
+    const m = run.meta || {};
+    const labels = { extract: m.en_pages ? `Extracted ${m.en_pages}+${m.zh_pages} pages` : null,
+      detect: m.authoritative && m.authoritative !== 'none' ? `Authoritative: ${m.authoritative}` : null,
+      glossary: run.glossary ? `${run.glossary.length} defined terms` : null,
+      align: `${(run.unaligned_sections || []).length} unaligned section${(run.unaligned_sections || []).length === 1 ? '' : 's'}`,
+      semantic: `${run.findings.length} candidate findings` };
+    let i = 0;
+    const step = () => {
+      if (state.route.id !== id) return;
+      if (i > 0) p.doneStages.add(STAGES[i - 1][0]);
+      if (i === 3) p.detail.unaligned_sections = (run.unaligned_sections || []).length;
+      if (i >= STAGES.length) { p.stage = 'done'; render(); setTimeout(() => { if (state.route.id === id) { applyRun(run); render(); } }, 350); return; }
+      p.stage = STAGES[i][0]; p.label = labels[STAGES[i][0]] || null; render();
+      i += 1; setTimeout(step, 620);
+    };
+    step();
   }
   async function finish(id) {
     try {
@@ -292,15 +330,15 @@
     return `${topbar()}
     <main class="upload">
       <h1 class="rise" style="--i:0">Check a bilingual filing</h1>
-      <p class="lede rise" style="--i:1">Drop the English and Chinese versions. Concord aligns them and flags every number, date and meaning that disagrees.</p>
+      <p class="lede rise" style="--i:1">Drop the two language versions of the same filing — any pair. Concord detects the languages, aligns them and flags every number, date and meaning that disagrees.</p>
       <!-- Two equal drop zones side by side: the product is about a PAIR, so both versions get identical weight; nothing else is on screen until both exist. -->
-      <div class="zones">${zone('en', 'English version', 2)}${zone('zh', 'Chinese version', 3)}</div>
+      <div class="zones">${zone('en', 'First version', 2)}${zone('zh', 'Second version', 3)}</div>
       <a class="sample rise" style="--i:4" href="#" data-act="sample">Load sample pair</a>
       ${both ? `<!-- Authoritative version is revealed only once both files exist: asking it earlier is a question the user cannot yet answer. -->
       <div class="authbox rise" style="--i:0">
         <span class="lbl">Authoritative version</span>
         <div class="seg" role="radiogroup" aria-label="Authoritative version">
-          ${[['EN', 'EN'], ['ZH', 'ZH'], ['none', 'Neither']].map(([v, l]) => `<button type="button" role="radio" aria-checked="${u.authoritative === v}" aria-pressed="${u.authoritative === v}" data-act="auth" data-v="${v}">${l}</button>`).join('')}
+          ${[['EN', u.en && u.en.lang !== 'PDF' ? u.en.lang : 'First'], ['ZH', u.zh && u.zh.lang !== 'PDF' ? u.zh.lang : 'Second'], ['none', 'Neither']].map(([v, l]) => `<button type="button" role="radio" aria-checked="${u.authoritative === v}" aria-pressed="${u.authoritative === v}" data-act="auth" data-v="${v}">${l}</button>`).join('')}
         </div>
         <span class="note">Pre-selected from the prevail clause when detected</span>
       </div>` : ''}
@@ -388,7 +426,7 @@
     const run = state.run, m = run.meta || {}, c = run.counts || {};
     const total = findings().length, rev = reviewedCount();
     const unlocked = exportUnlocked();
-    const prevail = m.authoritative === 'EN' ? 'EN prevails' : m.authoritative === 'ZH' ? 'ZH prevails' : 'No prevailing version';
+    const prevail = m.authoritative === 'EN' ? `${langName('en')} prevails` : m.authoritative === 'ZH' ? `${langName('zh')} prevails` : 'No prevailing version';
     const groups = SEVERITIES.map((sev, gi) => {
       const list = bySev(sev); const open = !!state.open[sev];
       return `<section class="grp" data-open="${open}">
@@ -453,14 +491,14 @@
   function detail() {
     const f = selected(); const id = state.run.run_id;
     if (!f) return `<div class="empty"><p>Select a finding on the left.</p></div>`;
-    const pageBtn = (lang, n) => `<button class="pill xs" data-act="page" data-lang="${lang}" data-page="${n}" title="Open page ${n} thumbnail (Enter)"><span class="num">${lang === 'en' ? 'English' : '中文'} · p.${n ?? '–'}</span></button>`;
+    const pageBtn = (lang, n) => `<button class="pill xs" data-act="page" data-lang="${lang}" data-page="${n}" title="Open page ${n} thumbnail (Enter)"><span class="num">${esc(langName(lang))} · p.${n ?? '–'}</span></button>`;
     const decided = f.status !== 'unreviewed';
     return `<div class="pane-in" data-fid="${f.id}">
       <div class="crumb rise" style="--i:0"><span class="dot ${f.severity}"></span><span>${f.severity}</span><span class="faint">·</span><span class="sec">${esc(f.section || '')}</span></div>
       <!-- Two passage columns, English left and Chinese right, in that fixed order: reviewers read the authoritative language first and the order never changes between findings. -->
       <div class="cols">
-        <div class="col rise" style="--i:1"><div class="colh"><span>English</span>${pageBtn('en', f.en?.page)}</div>${passage(f.en, 'en')}</div>
-        <div class="col rise" style="--i:2"><div class="colh"><span lang="zh-Hant">中文</span>${pageBtn('zh', f.zh?.page)}</div>${passage(f.zh, 'zh-Hant')}</div>
+        <div class="col rise" style="--i:1"><div class="colh"><span lang="${langCode('en')}">${esc(langName('en'))}</span>${pageBtn('en', f.en?.page)}</div>${passage(f.en, langCode('en'))}</div>
+        <div class="col rise" style="--i:2"><div class="colh"><span lang="${langCode('zh')}">${esc(langName('zh'))}</span>${pageBtn('zh', f.zh?.page)}</div>${passage(f.zh, langCode('zh'))}</div>
       </div>
       <!-- Explanation is one sentence in ink at body size: it is the thing the reviewer actually reads, so it outranks the badges below it. -->
       <p class="expl rise" style="--i:3">${esc(f.explanation || '')}</p>
@@ -486,8 +524,33 @@
   }
 
   // ----- Report -----
+  async function fillLocalReport(id, run) {
+    const frame = $('#report-frame'); if (!frame) return;
+    try {
+      if (!reportCache[id]) {
+        const r = await fetch(`${API}/report`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(run) });
+        reportCache[id] = await r.text();
+      }
+      if ($('#report-frame')) $('#report-frame').srcdoc = reportCache[id];
+    } catch (e) { toast(`Could not render the report: ${e.message}`); }
+  }
   function viewReport() {
     const id = state.route.id;
+    const local = loadLocal(id);
+    if (local) {
+      delete reportCache[id]; // decisions may have changed since the last render
+      setTimeout(() => fillLocalReport(id, local), 0);
+      const blob = URL.createObjectURL(new Blob([JSON.stringify(local, null, 1)], { type: 'application/json' }));
+      return `<div class="report">
+      <div class="rbar">
+        <a class="pill" href="#/run/${encodeURIComponent(id)}">${icon.back} Back to review</a>
+        <span class="sp"></span>
+        <a class="pill" href="${blob}" download="concord-${esc(id)}.json">Export JSON</a>
+        <button class="pill primary" data-act="print">${icon.dl} Download PDF</button>
+      </div>
+      <div class="rframe"><iframe id="report-frame" title="Sign-off report preview"></iframe></div>
+    </div>`;
+    }
     return `<div class="report">
       <!-- Report bar mirrors the review header height so the transition feels like the same tool, and the iframe IS the artefact the client receives — nothing is re-rendered client-side. -->
       <div class="rbar">
@@ -506,9 +569,9 @@
     const m = state.modal;
     if (!m || !state.run) { modalRoot.innerHTML = ''; return; }
     const src = api.pageUrl(state.run.run_id, m.lang, m.page);
-    modalRoot.innerHTML = `<div class="modal-bg" data-act="modal-close" role="dialog" aria-modal="true" aria-label="${m.lang === 'en' ? 'English' : 'Chinese'} page ${m.page}">
+    modalRoot.innerHTML = `<div class="modal-bg" data-act="modal-close" role="dialog" aria-modal="true" aria-label="${esc(langName(m.lang))} page ${m.page}">
       <div class="modal" data-stop>
-        <div class="mh"><span>${m.lang === 'en' ? 'English' : '中文'} · page <span class="num">${m.page}</span></span>
+        <div class="mh"><span>${esc(langName(m.lang))} · page <span class="num">${m.page}</span></span>
           <button class="pill sm" data-act="modal-close" autofocus>${icon.close} Close</button></div>
         <div class="mb"><img src="${src}" alt="${m.lang.toUpperCase()} page ${m.page}" onerror="this.outerHTML='<p class=&quot;mfail&quot;>Page thumbnail is not available for this run.</p>'"></div>
       </div></div>`;

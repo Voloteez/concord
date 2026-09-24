@@ -1,0 +1,6 @@
+data/runs
+backend/tests
+backend/__pycache__
+fixtures
+*.mp4
+.git
