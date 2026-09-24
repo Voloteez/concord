@@ -381,9 +381,17 @@
     render();
   }
   async function submitRun() {
-    const u = state.upload; if (!(u.en && u.zh && u.en.file && u.zh.file)) return;
+    const u = state.upload; if (!(u.en && u.zh)) return;
+    const demo = u.en.demo && u.zh.demo;
+    if (!demo && !(u.en.file && u.zh.file)) return;
     u.busy = true; u.error = null; render();
     try {
+      if (demo) {
+        const res = FIXTURE ? { run_id: 'r_fixture' } : await api.sample();
+        u.busy = false;
+        location.hash = `#/run/${encodeURIComponent(res.run_id)}`;
+        return;
+      }
       const fd = new FormData();
       fd.append('en', u.en.file, u.en.name);
       fd.append('zh', u.zh.file, u.zh.name);
@@ -394,13 +402,13 @@
       location.hash = `#/run/${encodeURIComponent(res.run_id)}`;
     } catch (e) { u.busy = false; u.error = `Could not start the run: ${e.message}`; render(); }
   }
-  async function loadSample() {
-    const u = state.upload; u.busy = true; u.error = null; render();
-    try {
-      const res = FIXTURE ? { run_id: 'r_fixture' } : await api.sample();
-      u.busy = false;
-      location.hash = `#/run/${encodeURIComponent(res.run_id)}`;
-    } catch (e) { u.busy = false; u.error = `Could not load the sample: ${e.message}`; render(); }
+  // The demo pair is dropped into the zones like real files; the reviewer still presses Run.
+  function loadSample() {
+    const u = state.upload; u.error = null; u.busy = false;
+    u.en = { demo: true, name: 'Meridian Pacific — announcement (EN).pdf', size: 92160, lang: 'EN', error: null };
+    u.zh = { demo: true, name: '明輝太平洋 — 公告 (ZH).pdf', size: 1782579, lang: 'ZH', error: null };
+    u.authoritative = 'EN';
+    if (state.route.view !== 'upload') location.hash = '#/upload'; else render();
   }
 
   // ----- Progress -----
