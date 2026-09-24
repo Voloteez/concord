@@ -353,15 +353,6 @@
       <p class="lede rise" style="--i:1">Drop the two language versions of the same filing — any pair. Concord detects the languages, aligns them and flags every number, date and meaning that disagrees.</p>
       <!-- Two equal drop zones side by side: the product is about a PAIR, so both versions get identical weight; nothing else is on screen until both exist. -->
       <div class="zones">${zone('en', 'First version', 2)}${zone('zh', 'Second version', 3)}</div>
-      <a class="sample rise" style="--i:4" href="#" data-act="sample">Load sample pair</a>
-      ${both ? `<!-- Authoritative version is revealed only once both files exist: asking it earlier is a question the user cannot yet answer. -->
-      <div class="authbox rise" style="--i:0">
-        <span class="lbl">Authoritative version</span>
-        <div class="seg" role="radiogroup" aria-label="Authoritative version">
-          ${[['EN', u.en && u.en.lang !== 'PDF' ? u.en.lang : 'First'], ['ZH', u.zh && u.zh.lang !== 'PDF' ? u.zh.lang : 'Second'], ['none', 'Neither']].map(([v, l]) => `<button type="button" role="radio" aria-checked="${u.authoritative === v}" aria-pressed="${u.authoritative === v}" data-act="auth" data-v="${v}">${l}</button>`).join('')}
-        </div>
-        <span class="note">Pre-selected from the prevail clause when detected</span>
-      </div>` : ''}
       <div class="runrow rise" style="--i:1">
         <button class="pill primary" data-act="run" ${both && !u.busy ? '' : 'disabled'} ${both ? '' : 'title="Add both PDFs to run"'}>${u.busy ? 'Uploading…' : 'Run consistency check'}</button>
       </div>
@@ -395,7 +386,7 @@
       const fd = new FormData();
       fd.append('en', u.en.file, u.en.name);
       fd.append('zh', u.zh.file, u.zh.name);
-      fd.append('authoritative', u.authoritative);
+      fd.append('authoritative', '');
       const res = await api.createRun(fd);
       u.busy = false;
       if (!res || !res.run_id) throw new Error('No run_id returned');
