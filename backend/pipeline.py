@@ -140,6 +140,9 @@ def run_pipeline(run_id: str, on_progress) -> None:
         _write(os.path.join(rd, "blocks_en.json"), blocks_en)
         _write(os.path.join(rd, "blocks_zh.json"), blocks_zh)
         idx_en, idx_zh = extract.sentence_index(blocks_en), extract.sentence_index(blocks_zh)
+        # "en" / "zh" are the two upload SLOTS; languages says what is actually inside each
+        languages = {"en": blocks_en.get("language") or extract.DEFAULT_LANGUAGES["en"],
+                     "zh": blocks_zh.get("language") or extract.DEFAULT_LANGUAGES["zh"]}
         unreadable = {"en": blocks_en["unreadable_pages"], "zh": blocks_zh["unreadable_pages"]}
         n_sent = len(idx_en) + len(idx_zh)
         progress("extract", f"Extracted {blocks_en['pages']}+{blocks_zh['pages']} pages, {n_sent} sentences", True,
@@ -149,9 +152,15 @@ def run_pipeline(run_id: str, on_progress) -> None:
             raise RuntimeError("no extractable text on one side (scanned PDF?)")
 
         # ---- detect
-        progress("detect", "Detecting titles and prevailing language")
+        progress("detect", f"Detected {languages['en']['name']} and {languages['zh']['name']}; "
+                           "detecting titles and prevailing version", False, {"languages": languages})
+        same = (languages["en"]["code"] == languages["zh"]["code"] and languages["en"]["code"] != "und"
+                and languages["en"].get("script") == languages["zh"].get("script"))
+        if same:
+            progress("detect", f"Warning: both documents appear to be in {languages['en']['name']}", False,
+                     {"languages": languages, "warning": "same_language"})
         try:
-            meta = align.detect_meta(blocks_en, blocks_zh, rd)
+            meta = align.detect_meta(blocks_en, blocks_zh, rd, languages=languages)
         except Exception as e:
             print(f"[pipeline] detect_meta failed: {e}")
             meta = {"en_title": "", "zh_title": "", "company": "", "stock_code": "",
@@ -159,19 +168,23 @@ def run_pipeline(run_id: str, on_progress) -> None:
         if override is not None:
             meta["authoritative"] = override
         authoritative = meta["authoritative"]
-        progress("detect", f"Authoritative: {authoritative}" + (" (detected)" if meta["authoritative_detected"] else ""),
-                 True, {"authoritative": authoritative, "authoritative_detected": meta["authoritative_detected"]})
+        auth_name = {"EN": languages["en"]["name"], "ZH": languages["zh"]["name"]}.get(authoritative, "none")
+        progress("detect", f"{languages['en']['name']} + {languages['zh']['name']}; authoritative: {auth_name}"
+                           + (" (detected)" if meta["authoritative_detected"] else ""),
+                 True, {"authoritative": authoritative, "authoritative_detected": meta["authoritative_detected"],
+                        "languages": languages, "same_language": same})
 
         # ---- glossary
         progress("glossary", "Extracting defined terms")
         try:
-            glossary = align.extract_glossary(blocks_en, blocks_zh, rd)
+            glossary = align.extract_glossary(blocks_en, blocks_zh, rd, languages=languages)
         except Exception as e:
             print(f"[pipeline] glossary failed: {e}")
             glossary = []
         meta_out = dict(meta_in)
         meta_out.update(meta)
         meta_out["created_at"] = created_at
+        meta_out["languages"] = languages
         meta_out["glossary"] = glossary
         _write(os.path.join(rd, "meta.json"), meta_out)
         progress("glossary", f"{len(glossary)} defined terms", True, {"glossary_terms": len(glossary)})
@@ -179,7 +192,8 @@ def run_pipeline(run_id: str, on_progress) -> None:
         # ---- align
         progress("align", "Aligning sections")
         alignment = align.align(blocks_en, blocks_zh, glossary, rd,
-                                lambda label, detail=None: progress("align", label, False, detail))
+                                lambda label, detail=None: progress("align", label, False, detail),
+                                languages=languages)
         _write(os.path.join(rd, "alignment.json"), alignment)
         n_pairs = sum(len(s["pairs"]) for s in alignment["sections"])
         progress("align", f"{len(alignment['sections'])} sections, {n_pairs} sentence pairs, "
@@ -194,7 +208,7 @@ def run_pipeline(run_id: str, on_progress) -> None:
         def do_checks():
             try:
                 import checks
-                return checks.run_checks(alignment, idx_en, idx_zh) or []
+                return checks.run_checks(alignment, idx_en, idx_zh, languages=languages) or []
             except Exception as e:
                 print(f"[pipeline] checks failed: {e}\n{traceback.format_exc()}")
                 progress("checks", f"Warning: checks unavailable ({type(e).__name__})", False, {"warning": str(e)})
@@ -206,6 +220,7 @@ def run_pipeline(run_id: str, on_progress) -> None:
                 return semantic.run_semantic(
                     alignment, idx_en, idx_zh, glossary, authoritative, rd,
                     lambda label, detail=None, *a, **k: progress("semantic", str(label), False, detail),
+                    languages=languages,
                 ) or []
             except Exception as e:
                 print(f"[pipeline] semantic failed: {e}\n{traceback.format_exc()}")
@@ -224,7 +239,8 @@ def run_pipeline(run_id: str, on_progress) -> None:
         progress("classify", "Classifying and ranking")
         try:
             import classify
-            findings, counts = classify.classify(det, llm_findings, alignment, glossary, authoritative)
+            findings, counts = classify.classify(det, llm_findings, alignment, glossary, authoritative,
+                                                 languages=languages)
         except Exception as e:
             print(f"[pipeline] classify failed: {e}\n{traceback.format_exc()}")
             progress("classify", f"Warning: classify unavailable ({type(e).__name__}), using fallback", False,
@@ -248,6 +264,7 @@ def run_pipeline(run_id: str, on_progress) -> None:
                 "authoritative_detected": bool(meta.get("authoritative_detected")),
                 "en_pages": blocks_en["pages"], "zh_pages": blocks_zh["pages"],
                 "unreadable_pages": unreadable,
+                "languages": languages,
                 "elapsed_s": round(time.time() - t0, 1),
             },
             "counts": counts,

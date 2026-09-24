@@ -1,14 +1,29 @@
 """Type -> severity, escalation, dedupe, rank, summary counts (see CONTRACT.md).
 
-classify(det, llm, alignment, glossary, authoritative) -> (findings, counts)
+classify(det, llm, alignment, glossary, authoritative, languages=None) -> (findings, counts)
 recount(findings, unaligned_sections) -> counts
 
-The LLM never sets severity; this module owns the map.
+The LLM never sets severity; this module owns the map. "en" / "zh" are the two upload SLOTS;
+`languages` says which language each slot holds (omission wording, modal words for escalation).
 """
 from __future__ import annotations
 
 import copy
 import re
+
+try:
+    from extract import DEFAULT_LANGUAGES, modality_for, short_name
+except Exception:  # pragma: no cover - classify must stay importable on its own
+    DEFAULT_LANGUAGES = {"en": {"code": "en", "name": "English", "script": "Latn"},
+                         "zh": {"code": "zh", "name": "Chinese", "script": "Hant"}}
+
+    def modality_for(language):
+        return {"modal": ["may", "will", "shall", "must"] if (language or {}).get("code") != "zh"
+                else ["可能", "將", "須", "應"]}
+
+    def short_name(language, fallback=""):
+        name = (language or {}).get("name") or fallback
+        return name.split(" (")[0] if name else fallback
 
 SEVERITY = {
     "NUMBER_MISMATCH": "Critical",
@@ -31,7 +46,36 @@ _DATE = re.compile(
     r"\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?\s+\d{4}"
     r"|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}"
     r"|[零〇一二三四五六七八九\d]{4}年[一二三四五六七八九十\d]{1,2}月[一二三四五六七八九十\d]{1,3}日", re.I)
-_RISK_HEADING = re.compile(r"risk|warning|condition|風險|警告|條件", re.I)
+_RISK_HEADING = re.compile(
+    r"risk|warning|condition|風險|警告|條件|风险|条件"                     # EN / ZH
+    r"|risque|avertissement"                                             # FR (condition shared with EN)
+    r"|risiko|risiken|warnung|bedingung"                                 # DE
+    r"|rischio|rischi|avvertenza|condizion"                              # IT
+    r"|riesgo|advertencia|condici[óo]n"                                  # ES
+    r"|risco|advert[êe]ncia|condi[çc][ãa]o"                              # PT
+    r"|risico|waarschuwing|voorwaarde"                                   # NL
+    r"|リスク|警告|条件|위험|경고|조건", re.I)                            # JA / KO
+
+
+def _modal_regex(language: dict) -> re.Pattern:
+    """Word-boundary match for Latin-script modal words, plain substring match for CJK ones."""
+    words = modality_for(language).get("modal") or []
+    parts = []
+    for w in words:
+        if re.search(r"[A-Za-zÀ-ÿ]", w):
+            parts.append(rf"\b{re.escape(w)}\b")
+        else:
+            parts.append(re.escape(w))
+    return re.compile("|".join(parts) or r"(?!x)x", re.I)
+
+
+def _slot_languages(languages: dict | None) -> dict:
+    out = {}
+    for slot in ("en", "zh"):
+        lang = (languages or {}).get(slot) or DEFAULT_LANGUAGES[slot]
+        out[slot] = {"code": lang.get("code") or "und", "name": lang.get("name") or "Unknown",
+                     "script": lang.get("script") or "Zyyy"}
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -71,12 +115,12 @@ def _has_glossary_term(en: str, zh: str, glossary: list[dict]) -> bool:
     return False
 
 
-def _should_escalate_omission(f: dict, glossary: list[dict]) -> bool:
+def _should_escalate_omission(f: dict, glossary: list[dict], modal_a=_MODAL_EN, modal_b=_MODAL_ZH) -> bool:
     en, zh = _escalation_text(f)
     blob = en + " " + zh
     if _NUMBER.search(blob) or _DATE.search(blob):
         return True
-    if _MODAL_EN.search(en) or _MODAL_ZH.search(zh):
+    if modal_a.search(en) or modal_b.search(zh):
         return True
     return _has_glossary_term(en, zh, glossary)
 
@@ -111,20 +155,21 @@ def _fingerprint(f: dict) -> tuple:
             tuple((f.get("zh") or {}).get("span") or ()))
 
 
-def _word_omission(f: dict, authoritative: str) -> None:
-    """PRD: content missing from the non-authoritative side is worded 'omitted from Chinese'."""
+def _word_omission(f: dict, authoritative: str, names: tuple[str, str] = ("English", "Chinese")) -> None:
+    """PRD: content missing from the non-authoritative side is worded 'omitted from {language name}'."""
     if f.get("type") not in ("OMISSION_MATERIAL", "OMISSION_MINOR"):
         return
+    name_a, name_b = names
     expl = (f.get("explanation") or "").strip()
     zh_null = (f.get("zh") or {}).get("span") is None
     en_null = (f.get("en") or {}).get("span") is None
     phrase = None
     if authoritative == "EN" and zh_null and not en_null:
-        phrase = "omitted from Chinese"
+        phrase = f"omitted from {name_b}"
     elif authoritative == "ZH" and en_null and not zh_null:
-        phrase = "omitted from English"
+        phrase = f"omitted from {name_a}"
     if phrase and phrase.lower() not in expl.lower():
-        lang = phrase.split()[-1]
+        lang = re.escape(phrase[len("omitted from "):])
         # "is missing from the Chinese version" -> "is omitted from Chinese" rather than appending a second phrase
         rewritten, n = re.subn(
             rf"\b(missing|absent|not present|omitted)\s+(?:entirely\s+)?from\s+(?:the\s+)?{lang}(?:\s+(?:version|text|section|side))?(\s+entirely)?",
@@ -132,7 +177,7 @@ def _word_omission(f: dict, authoritative: str) -> None:
         if n:
             expl = rewritten if rewritten.endswith((".", "。")) else rewritten + "."
         else:
-            expl = (expl.rstrip(" .;") + " — " + phrase + ".") if expl else phrase.capitalize() + "."
+            expl = (expl.rstrip(" .;") + " — " + phrase + ".") if expl else phrase[0].upper() + phrase[1:] + "."
     f["explanation"] = expl
 
 
@@ -141,7 +186,10 @@ def _word_omission(f: dict, authoritative: str) -> None:
 # ---------------------------------------------------------------------------
 
 def classify(det: list[dict], llm: list[dict], alignment: dict, glossary: list,
-             authoritative: str) -> tuple[list[dict], dict]:
+             authoritative: str, languages: dict | None = None) -> tuple[list[dict], dict]:
+    L = _slot_languages(languages)
+    names = (short_name(L["en"], "English"), short_name(L["zh"], "Chinese"))
+    modal_a, modal_b = _modal_regex(L["en"]), _modal_regex(L["zh"])
     det = [copy.deepcopy(f) for f in (det or [])]
     llm = [copy.deepcopy(f) for f in (llm or [])]
 
@@ -170,13 +218,13 @@ def classify(det: list[dict], llm: list[dict], alignment: dict, glossary: list,
     # --- severity + escalations -------------------------------------------------------------
     for f in kept:
         ftype = f.get("type") or "WORDING"
-        if ftype == "OMISSION_MINOR" and _should_escalate_omission(f, glossary):
+        if ftype == "OMISSION_MINOR" and _should_escalate_omission(f, glossary, modal_a, modal_b):
             f["type"] = ftype = "OMISSION_MATERIAL"
         sev = SEVERITY.get(ftype, "Cosmetic")
         if ftype == "HEDGE_CHANGE" and _RISK_HEADING.search(_section_headings(f, alignment)):
             sev = "Critical"
         f["severity"] = sev
-        _word_omission(f, authoritative)
+        _word_omission(f, authoritative, names)
 
     # --- rank: severity desc, page asc, then stable by pair/sentence id ---------------------
     kept.sort(key=lambda f: (_SEV_RANK.get(f.get("severity"), 3), _page(f), _key(f), f.get("type") or ""))

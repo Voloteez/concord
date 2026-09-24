@@ -1,0 +1,1 @@
+{"judgments": [{"pair_id": "p_005", "verdict": "MEANING_SHIFT", "en_span": "EUR 12.4 million", "zh_span": "12,1 millions d'euros", "explanation": "Net result figure differs between EN (12.4 million) and ZH (12.1 million), a substantive numeric discrepancy beyond formatting.", "confidence": 0.7}]}

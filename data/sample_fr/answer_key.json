@@ -1,0 +1,49 @@
+{
+  "pair": {
+    "en": "data/sample_fr/en.pdf",
+    "fr": "data/sample_fr/fr.pdf",
+    "authoritative": "EN",
+    "slots": {
+      "en": "English",
+      "zh": "French"
+    }
+  },
+  "company": "Nordlys Énergie SA",
+  "stock_code": "",
+  "en_title": "Half-year results 2026: revenue up 7.5%, guidance confirmed",
+  "fr_title": "Résultats semestriels 2026 : chiffre d'affaires en hausse de 7,5 %, objectifs confirmés",
+  "expected_findings": [
+    {
+      "plant": 1,
+      "type": "NUMBER_MISMATCH",
+      "expected_severity": "Critical",
+      "section": "HIGHLIGHTS OF THE FIRST HALF OF 2026",
+      "en_snippet": "The net result attributable to shareholders amounted to EUR 12.4 million, compared with EUR 9.8 million for the first half of 2025.",
+      "fr_snippet": "Le résultat net part du Groupe s'établit à 12,1 millions d'euros, contre 9,8 millions d'euros au premier semestre 2025.",
+      "note": "EUR 12.4 million in English; 12,1 millions d'euros in French."
+    },
+    {
+      "plant": 2,
+      "type": "DATE_MISMATCH",
+      "expected_severity": "Critical",
+      "section": "FINANCIAL CALENDAR",
+      "en_snippet": "The annual general meeting will be held in Oslo on 12 May 2027.",
+      "fr_snippet": "L'assemblée générale annuelle se tiendra à Oslo le 19 mai 2027.",
+      "note": "12 May 2027 in English; 19 mai 2027 in French."
+    },
+    {
+      "plant": 3,
+      "type": "HEDGE_CHANGE",
+      "expected_severity": "Material",
+      "section": "OUTLOOK",
+      "en_snippet": "Following the commissioning of Skagen, the Group may consider additional investments in offshore storage capacity in 2027.",
+      "fr_snippet": "À la suite de la mise en service de Skagen, le Groupe va envisager des investissements supplémentaires dans des capacités de stockage en mer en 2027.",
+      "note": "may consider (conditional) became va envisager (definite)."
+    }
+  ],
+  "notes": [
+    "Only the three planted findings above are genuine discrepancies.",
+    "The French version uses French typography throughout (12,4 millions d'euros, 7,5 %, 1 250 MW, 24 septembre 2026); none of that must be flagged.",
+    "Both versions say the English version prevails: authoritative = EN (slot en), detected."
+  ]
+}

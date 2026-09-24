@@ -7,6 +7,26 @@ from __future__ import annotations
 import html
 from datetime import datetime, timezone
 
+CJK_SCRIPTS = ("Hani", "Hant", "Hans", "Jpan", "Hang", "Kore")
+DEFAULT_LANGUAGES = {"en": {"code": "en", "name": "English", "script": "Latn"},
+                     "zh": {"code": "zh", "name": "Chinese", "script": "Hant"}}
+
+
+def _languages(meta: dict) -> dict:
+    """meta.languages per SLOT with the English / Chinese fallback for runs made before language detection."""
+    out = {}
+    for slot in ("en", "zh"):
+        lang = ((meta or {}).get("languages") or {}).get(slot) or {}
+        base = DEFAULT_LANGUAGES[slot]
+        out[slot] = {"code": lang.get("code") or base["code"], "name": lang.get("name") or base["name"],
+                     "script": lang.get("script") or base["script"]}
+    return out
+
+
+def _cjk_class(lang: dict) -> str:
+    """The CJK font stack only when the slot's script is Chinese / Japanese / Korean."""
+    return " zh" if lang.get("script") in CJK_SCRIPTS else ""
+
 SEV_COLOUR = {"Critical": "#dc2626", "Material": "#f59e0b", "Cosmetic": "#94a3b8"}
 SEV_ORDER = {"Critical": 0, "Material": 1, "Cosmetic": 2}
 STATUS_LABEL = {"confirmed": "Confirmed", "dismissed": "Dismissed", "unresolved": "Unresolved",
@@ -34,7 +54,7 @@ h3{font-size:11pt}
 .eyebrow{font-size:9pt;text-transform:uppercase;letter-spacing:.08em;color:#9580ff;font-weight:600;margin-bottom:10px}
 .cover{padding-bottom:28px;border-bottom:1px solid #e8e8e8}
 .titles{margin:18px 0 6px;font-size:12pt;color:#181925;font-weight:500}
-.titles .zh{display:block;margin-top:2px;color:#3f3f46;font-weight:400}
+.titles .second{display:block;margin-top:2px;color:#3f3f46;font-weight:400}
 .meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 32px;margin-top:22px;font-size:10pt}
 .meta div{display:grid;grid-template-columns:120px 1fr;gap:0 12px;align-items:baseline}
 .meta div span:first-child{color:#737373}
@@ -104,7 +124,10 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
 
 
-def _card(f: dict) -> str:
+def _card(f: dict, langs: dict | None = None) -> str:
+    langs = langs or DEFAULT_LANGUAGES
+    name_a, name_b = langs["en"]["name"], langs["zh"]["name"]
+    cls_a, cls_b = _cjk_class(langs["en"]), _cjk_class(langs["zh"])
     sev = f.get("severity") or "Cosmetic"
     en, zh = f.get("en") or {}, f.get("zh") or {}
     status = f.get("status") or "unreviewed"
@@ -119,12 +142,12 @@ def _card(f: dict) -> str:
              f'<span class="section">{_e(f.get("section") or "")}</span>',
              '</div>',
              '<div class="cols">',
-             '<div class="col"><div class="lab"><span>English</span>'
+             f'<div class="col"><div class="lab"><span>{_e(name_a)}</span>'
              f'<span class="num">{"p." + str(en.get("page")) if en.get("page") is not None else ""}</span></div>'
-             f'<div class="txt">{_marked(en.get("text"), en.get("span"))}</div></div>',
-             '<div class="col"><div class="lab"><span>Chinese</span>'
+             f'<div class="txt{cls_a}">{_marked(en.get("text"), en.get("span"))}</div></div>',
+             f'<div class="col"><div class="lab"><span>{_e(name_b)}</span>'
              f'<span class="num">{"p." + str(zh.get("page")) if zh.get("page") is not None else ""}</span></div>'
-             f'<div class="txt zh">{_marked(zh.get("text"), zh.get("span"))}</div></div>',
+             f'<div class="txt{cls_b}">{_marked(zh.get("text"), zh.get("span"))}</div></div>',
              '</div>',
              f'<div class="expl"><b>Finding.</b> {_e(f.get("explanation") or "")} '
              f'<span class="soft num">Confidence {conf_s}.</span></div>',
@@ -152,8 +175,11 @@ def render_report(run: dict) -> str:
     unaligned = run.get("unaligned_sections") or []
     unreadable = meta.get("unreadable_pages") or {}
     glossary = run.get("glossary") or []
+    langs = _languages(meta)
+    name_a, name_b = langs["en"]["name"], langs["zh"]["name"]
+    cls_a, cls_b = _cjk_class(langs["en"]), _cjk_class(langs["zh"])
     auth = meta.get("authoritative") or "none"
-    auth_label = {"EN": "English prevails", "ZH": "Chinese prevails"}.get(auth, "No authoritative version")
+    auth_label = {"EN": f"{name_a} prevails", "ZH": f"{name_b} prevails"}.get(auth, "No authoritative version")
     if meta.get("authoritative_detected") and auth in ("EN", "ZH"):
         auth_label += " (detected from the filing)"
     generated = _now()
@@ -164,15 +190,16 @@ def render_report(run: dict) -> str:
            '<header class="cover">',
            '<div class="eyebrow">Concord</div>',
            '<h1>Bilingual consistency sign-off</h1>',
-           f'<div class="titles">{_e(meta.get("en_title") or "—")}'
-           f'<span class="zh">{_e(meta.get("zh_title") or "—")}</span></div>',
+           f'<div class="titles"><span class="{cls_a.strip()}">{_e(meta.get("en_title") or "—")}</span>'
+           f'<span class="second{cls_b}">{_e(meta.get("zh_title") or "—")}</span></div>',
            '<div class="meta">',
            f'<div><span>Company</span><span>{_e(meta.get("company") or "—")}</span></div>',
            f'<div><span>Stock code</span><span class="num">{_e(meta.get("stock_code") or "—")}</span></div>',
            f'<div><span>Run</span><span class="num">{_e(run.get("run_id") or "—")} · {_e(_fmt_ts(run.get("created_at")))}</span></div>',
            f'<div><span>Authoritative version</span><span>{_e(auth_label)}</span></div>',
            f'<div><span>Reviewer</span><span>{_e(run.get("reviewer") or "—")}</span></div>',
-           f'<div><span>Pages</span><span class="num">EN {_e(meta.get("en_pages", "—"))} · ZH {_e(meta.get("zh_pages", "—"))}</span></div>',
+           f'<div><span>Languages</span><span>{_e(name_a)} · {_e(name_b)}</span></div>',
+           f'<div><span>Pages</span><span class="num">{_e(name_a)} {_e(meta.get("en_pages", "—"))} · {_e(name_b)} {_e(meta.get("zh_pages", "—"))}</span></div>',
            '</div>',
            '<div class="counts">']
     for sev in SEV_ORDER:
@@ -198,15 +225,16 @@ def render_report(run: dict) -> str:
                 current = sev
                 out.append(f'<h3 style="margin:22px 0 10px;color:{SEV_COLOUR.get(sev, "#94a3b8")}">{_e(sev)} '
                            f'<span class="soft num" style="font-weight:400">· {by_sev.get(sev, 0)}</span></h3>')
-            out.append(_card(f))
+            out.append(_card(f, langs))
 
     # appendix
     out.append('<h2>Appendix</h2>')
     out.append('<h3 style="margin:14px 0 8px">Unaligned sections</h3>')
     if unaligned:
         for u in unaligned:
-            out.append(f'<div class="unaligned"><span class="{"zh" if u.get("lang") == "zh" else ""}">{_e(u.get("heading") or "—")}</span>'
-                       f'<span class="tag">{_e((u.get("lang") or "").upper())}'
+            slot = "zh" if u.get("lang") == "zh" else "en"
+            out.append(f'<div class="unaligned"><span class="{_cjk_class(langs[slot]).strip()}">{_e(u.get("heading") or "—")}</span>'
+                       f'<span class="tag">{_e(langs[slot]["name"])}'
                        f'{" p." + str(u.get("page")) if u.get("page") is not None else ""} · no counterpart</span></div>')
     else:
         out.append('<p class="empty">Every section has a counterpart.</p>')
@@ -214,16 +242,16 @@ def render_report(run: dict) -> str:
     out.append('<h3 style="margin:22px 0 8px">Unreadable pages</h3>')
     en_bad, zh_bad = unreadable.get("en") or [], unreadable.get("zh") or []
     if en_bad or zh_bad:
-        out.append(f'<p class="num">EN: {_e(", ".join(map(str, en_bad)) or "none")} · '
-                   f'ZH: {_e(", ".join(map(str, zh_bad)) or "none")}</p>')
+        out.append(f'<p class="num">{_e(name_a)}: {_e(", ".join(map(str, en_bad)) or "none")} · '
+                   f'{_e(name_b)}: {_e(", ".join(map(str, zh_bad)) or "none")}</p>')
     else:
         out.append('<p class="empty">All pages were readable.</p>')
 
     out.append('<h3 style="margin:22px 0 8px">Glossary of defined terms</h3>')
     if glossary:
-        out.append('<table><thead><tr><th>English</th><th>Chinese</th></tr></thead><tbody>')
+        out.append(f'<table><thead><tr><th>{_e(name_a)}</th><th>{_e(name_b)}</th></tr></thead><tbody>')
         for g in glossary:
-            out.append(f'<tr><td>{_e(g.get("en"))}</td><td class="zh">{_e(g.get("zh"))}</td></tr>')
+            out.append(f'<tr><td class="{cls_a.strip()}">{_e(g.get("en"))}</td><td class="{cls_b.strip()}">{_e(g.get("zh"))}</td></tr>')
         out.append('</tbody></table>')
     else:
         out.append('<p class="empty">No glossary was extracted.</p>')

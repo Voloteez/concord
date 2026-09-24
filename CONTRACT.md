@@ -264,3 +264,86 @@ pipeline inside the request and return the FULL run object with `"local": true` 
 (body = run object) and loads page thumbnails from `/api/sample/page/{lang}/{n}.png` for the
 sample pair. LLM responses for the demo are shipped in `data/cache/` so the hosted demo
 replays without network; new uploads call the models live (needs `ANTHROPIC_API_KEY`).
+
+## Languages
+
+Concord compares ANY language pair, not just English/Chinese. Detection is heuristic (no
+langdetect / lingua); nothing new is installed.
+
+- **Slots, not languages.** The two upload slots keep their internal keys `en` and `zh`
+  everywhere — `blocks_en.json` / `blocks_zh.json`, `finding.en` / `finding.zh`, `idx_en` /
+  `idx_zh`, `en_ids` / `zh_ids`, `en_title` / `zh_title`, glossary `{"en","zh"}`, the
+  `authoritative` values `"EN"` / `"ZH"` / `"none"` and `unaligned_sections[].lang`. They are
+  SLOT names; the frontend maps them to the detected names. Do not rename keys.
+- `extract.detect_language(text) -> {"code", "name", "script"}` — e.g. `{"code":"en","name":
+  "English","script":"Latn"}`. CJK ideographs → `zh` with script `Hant` ("Chinese (Traditional)")
+  or `Hans` ("Chinese (Simplified)"), decided by a small set of characters that differ (於/于 這/这
+  個/个 為/为 說/说 體/体 與/与 國/国 …); hiragana/katakana → `ja` "Japanese" (`Jpan`); hangul → `ko`
+  "Korean" (`Hang`); otherwise Latin-script stopword scoring over `en fr de it es pt nl` (≥ 30
+  function words each, names English / French / German / Italian / Spanish / Portuguese / Dutch);
+  fallback `{"code":"und","name":"Unknown","script":"Zyyy"}`. It runs on the first ~4000 chars of
+  the PDF text and `extract_pdf` stores the result in the blocks object as `"language"`. Layout
+  decisions (joining lines without spaces, splitting on 。！？；) follow the detected script, not the
+  slot, so a French PDF in the second slot extracts correctly. `extract.LANGUAGES`, `MODALITY`,
+  `modality_for()`, `joiner()`, `short_name()`, `is_cjk()` and `DEFAULT_LANGUAGES` are the shared
+  language registry used by the other stages.
+- `pipeline.py` writes `meta.languages = {"en": <detect result for slot en>, "zh": <detect result
+  for slot zh>}` into `findings.json` (and `meta.json`), emits `detail.languages` on the `detect`
+  progress events, warns with a progress label (`detail.warning = "same_language"`) when both
+  slots detect the same language, and passes `languages=` to `align.detect_meta`,
+  `align.extract_glossary`, `align.align`, `checks.run_checks`, `semantic.run_semantic` and
+  `classify.classify`. All of these are keyword arguments with defaults (English / Chinese), so
+  old callers and the existing tests are unchanged.
+- `align.py`: prompts name the detected languages ("the French and English versions") instead of
+  assuming English/Chinese. Prevail-clause detection covers English, Traditional and Simplified
+  Chinese (以英文版本為準 / 为准), French (« la version anglaise prévaut », « la version française
+  fait foi », « en cas de divergence … version … prévaut »), German (« die englische Fassung ist
+  maßgeblich », « im Zweifelsfall gilt die deutsche Fassung »), Italian (« prevale la versione
+  inglese/italiana »), Spanish (« prevalecerá la versión inglesa/española »), Portuguese and
+  Japanese (英語版が優先). The clause names a LANGUAGE; `detect_meta` maps it to whichever SLOT holds
+  that language and returns `"EN"` / `"ZH"` / `"none"` as before (`"none"` also when the named
+  language is in neither slot, with `authoritative_detected: true`). Definitions-section headings:
+  DEFINITIONS, INTERPRETATION, 釋義, 释义, 定義, 定义, DÉFINITIONS, DEFINITIONEN, DEFINIZIONI,
+  DEFINICIONES, DEFINIÇÕES, DEFINITIES, 用語の定義. Term patterns: `"Term" means`,
+  `« Terme » désigne`, `„Begriff" bezeichnet`, `"Termine" indica`, `「詞語」指`, `“词语”指`,
+  `「用語」とは`; every pattern is tried on both sides.
+- `semantic.py`: the PRD system prompt is a template rendered for the two detected languages
+  (`build_system_prompt(languages)`): "{name_a} and {name_b} versions", a generic glossary rule
+  ("a glossary pair is equivalent; two different defined terms, e.g. the Company and the Group,
+  are NOT equivalent") and a per-language modality/quantifier table (`extract.MODALITY`: EN may /
+  could vs will / shall / must, expects / intends vs confirms / guarantees; FR peut / pourrait vs
+  va / devra / doit, prévoit / a l'intention; DE kann / könnte vs wird / muss, erwartet /
+  beabsichtigt; IT può / potrebbe vs sarà / dovrà; ES puede / podría vs será / deberá; PT, NL; ZH
+  可能 / 或 vs 將 / 須 / 必須, 預期 / 擬 vs 確認 / 保證 (Simplified variant); JA かもしれない vs する /
+  しなければならない; KO). The prompt states that passages labelled EN are the first slot's language
+  and ZH the second's; field names `en_span` / `zh_span` stay. `semantic.SYSTEM_PROMPT` is the
+  English/Chinese rendering. The omission prompt is templated the same way. Sentences are joined
+  with `extract.joiner(language)` (no space for Chinese/Japanese, a space otherwise).
+- `checks.py`: numbers, dates and currencies are extracted per detected language code:
+  `en` and `zh` use today's code paths unchanged (`ja` shares the Chinese 年月日 / 萬 億 rules);
+  `fr de it es pt nl` use locale rules — thousands separators space / U+202F / U+00A0 / `'`
+  (de-CH) / `.`, comma decimals ("1 234 567,89", "1.234.567,89", "1'234'567.89"); scale words
+  millions / milliards, Mio. / Mrd. / Millionen / Milliarden, milioni / miliardi, millones /
+  miles de millones / mil millones, milhões, miljoen / miljard; percentages "7,5 %" / pour cent /
+  Prozent / per cento / por ciento; dates "24 septembre 2026", "1er janvier 2026", "24. September
+  2026", "24.09.2026", "24 settembre 2026", "24 de septiembre de 2026", "24/09/2026" (day-first
+  for all these locales) plus ISO; currencies euros / €, CHF / francs suisses / Franken, dollars
+  canadiens, dollars américains, livres sterling and the ISO codes. Unknown Latin languages fall
+  back to the English rules. Explanations use the short language names ("English states €12.4
+  million; French states €12.1 million.").
+- `classify.py`: omission wording is "omitted from {language name}" (short name: "Chinese", not
+  "Chinese (Traditional)"); the OMISSION_MINOR → OMISSION_MATERIAL modal test uses each language's
+  modal words (`MODALITY[code]["modal"]`); the HEDGE_CHANGE → Critical heading test also matches
+  Risque / Avertissement / Condition, Risiko / Warnung / Bedingung, Rischio / Avvertenza /
+  Condizione, Riesgo / Advertencia / Condición (plus PT, NL, JA, KO).
+- `report.py`: column headers, the glossary table, the "Authoritative version" line ("French
+  prevails") and the page counts use `meta.languages[slot]["name"]` (fallback English / Chinese
+  for runs recorded before detection); the CJK font stack is applied to a passage only when that
+  slot's script is Chinese / Japanese / Korean.
+- Second demo pair: `backend/make_sample_fr.py` writes `data/sample_fr/en.pdf` + `fr.pdf`, a
+  2-page Euronext/TSX-style half-year results release by "Nordlys Énergie SA" (English / French)
+  with three plants — number ("EUR 12.4 million" vs "12,1 millions d'euros"), date (AGM 12 May
+  2027 vs 19 mai 2027) and hedge ("may consider" vs "va envisager") — and a French prevail clause
+  naming English. Not wired to the API yet.
+- Tests: `backend/tests/test_language_detect.py`, `backend/tests/test_checks_locales.py`.
+  Every `backend/tests/test_*.py` runs standalone with `python3` (pytest is not installed).
