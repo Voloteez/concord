@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Concord — Bilingual filing consistency</title>
+<meta name="color-scheme" content="light">
+<!-- Open Runde from fontsource on jsDelivr: the applai/visitors.now typeface, self-declared so no CSS from a third host is needed. -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- One root; app.js owns everything below it. Hash routing (#/ , #/run/{id}, #/run/{id}/report) so the FastAPI static mount can serve a single index.html with no rewrite rules. -->
+<div id="app" aria-live="polite"></div>
+
+<!-- Modal layer sits outside #app so a view re-render never tears down an open page thumbnail. -->
+<div id="modal-root"></div>
+
+<!-- Templates are kept in app.js as string builders rather than <template> tags: the views are data-driven (findings arrive as JSON) and one render function per view keeps state -> DOM in one direction. -->
+<script src="app.js"></script>
+</body>
+</html>
