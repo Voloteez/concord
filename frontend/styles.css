@@ -296,3 +296,26 @@ kbd {
 .verdict .pill.ghost { background: transparent; border: 0; color: var(--soft); }
 .verdict .pill.ghost:hover { color: var(--ink); background: rgba(0,0,0,.04); }
 .pane .crumb span:not(.dot):not(.faint):first-of-type { font-weight: 500; color: var(--ink); }
+
+
+/* ----- landing: one screen ----- */
+.topbar .toplink { font-size: 13.5px; font-weight: 500; color: var(--soft); text-decoration: none; }
+.topbar .toplink:hover { color: var(--ink); }
+.landing { position: relative; max-width: 880px; margin: 0 auto; padding: clamp(64px, 12vh, 128px) 24px 96px; text-align: center; }
+.landing::before { content: ""; position: fixed; inset: 0; z-index: -1; opacity: .5; pointer-events: none;
+  background-image: radial-gradient(#d9d9dc 1px, transparent 1px); background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 38%, #000 20%, transparent 100%); mask-image: radial-gradient(ellipse 60% 55% at 50% 38%, #000 20%, transparent 100%); }
+.landing .eyebrow { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px 0 10px; border-radius: 999px; background: var(--violet-tint); color: var(--violet-hover); font-size: 13px; font-weight: 500; }
+.landing .eyebrow .dot { width: 6px; height: 6px; background: var(--violet); }
+.landing h1 { margin: 22px auto 0; max-width: 16ch; font-size: clamp(40px, 6vw, 72px); font-weight: 600; line-height: 1.02; letter-spacing: -0.035em; color: var(--ink); text-wrap: balance; }
+.landing .lede { margin: 22px auto 0; max-width: 56ch; font-size: clamp(16px, 1.4vw, 18.5px); line-height: 1.55; color: var(--text); text-wrap: pretty; }
+.landing .ctas { margin-top: 32px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.landing .pill.lg { height: 48px; padding: 0 22px; font-size: 16px; gap: 8px; }
+.landing .pill.primary svg { transition: transform .2s var(--ease); }
+.landing .pill.primary:hover svg { transform: translateX(2px); }
+.landing .fine { margin-top: 16px; font-size: 13px; color: var(--faint); }
+.landing .proof { margin: 72px auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: left; }
+.landing .proof div { padding: 18px 20px; border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; gap: 4px; }
+.landing .proof b { font-weight: 500; color: var(--ink); font-size: 14.5px; }
+.landing .proof span { font-size: 13px; color: var(--soft); line-height: 1.45; }
+@media (max-width: 720px) { .landing .proof { grid-template-columns: 1fr; } .landing .ctas .pill { width: 100%; max-width: 340px; } }

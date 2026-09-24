@@ -59,6 +59,7 @@
     chev: '<svg class="chev" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>',
     up: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>',
     doc: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>',
+    arrowR: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>',
     back: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3L5 8l5 5"/></svg>',
     dl: '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v9M4 7l4 4 4-4M3 13h10"/></svg>',
   };
@@ -128,14 +129,15 @@
     let m;
     if ((m = h.match(/^#\/run\/([^/]+)\/report\/?$/))) return { view: 'report', id: decodeURIComponent(m[1]) };
     if ((m = h.match(/^#\/run\/([^/]+)\/?$/))) return { view: 'run', id: decodeURIComponent(m[1]) };
-    return { view: 'upload', id: null };
+    if (/^#\/upload\/?$/.test(h)) return { view: 'upload', id: null };
+    return { view: 'landing', id: null };
   }
   function route() {
     const r = parseHash();
     const changedRun = r.id !== state.route.id;
     state.route = r;
     state.modal = null; renderModal();
-    if (r.view === 'upload') { stopStream(); render(); return; }
+    if (r.view === 'upload' || r.view === 'landing') { stopStream(); render(); return; }
     if (changedRun || !state.run || state.run.run_id !== r.id) { state.run = null; state.selectedId = null; state.dismissOpen = null; }
     if (r.view === 'report') { stopStream(); render(); return; }
     if (state.run && state.run.status === 'done') { render(); return; }
@@ -281,7 +283,8 @@
   const app = $('#app');
   function render() {
     const v = state.route.view;
-    const html = v === 'upload' ? viewUpload()
+    const html = v === 'landing' ? viewLanding()
+      : v === 'upload' ? viewUpload()
       : v === 'report' ? viewReport()
       : state.progress.error ? viewError()
       : (state.run && state.run.status === 'done') ? viewReview()
@@ -306,6 +309,29 @@
     return `<!-- Top bar: dot + wordmark is the whole brand; the faint label on the right states the product in five words so a first-time viewer needs no onboarding. -->
     <header class="topbar"><a class="wordmark" href="#/" aria-label="Concord home"><span class="dot"></span>Concord</a>
       <span class="label">${right || 'Bilingual filing consistency'}</span></header>`;
+  }
+
+  // ----- Landing -----
+  function viewLanding() {
+    const u = state.upload;
+    return `${topbar(`<a class="toplink" href="#/upload">Check your own filing</a>`)}
+    <main class="landing">
+      <!-- One screen, one sentence, one button: the judge should understand the product before scrolling and be inside the demo on the first click. -->
+      <span class="eyebrow rise" style="--i:0"><span class="dot"></span>Bilingual filing consistency</span>
+      <h1 class="rise" style="--i:1">Catch what changed in translation.</h1>
+      <p class="lede rise" style="--i:2">Upload the two language versions of a regulatory filing. Concord aligns them section by section, finds every number, date and sentence that disagrees, and ranks each one by what can get someone fined.</p>
+      <div class="ctas rise" style="--i:3">
+        <button class="pill primary lg" data-act="sample" ${u.busy ? 'disabled' : ''}>${u.busy ? 'Opening…' : 'Open the demo'} ${icon.arrowR || ''}</button>
+        <a class="pill lg" href="#/upload">Check your own filing</a>
+      </div>
+      <p class="fine rise" style="--i:4">The demo is an HKEX announcement in English and Chinese with five planted discrepancies. Any language pair works.</p>
+      ${u.error ? `<p class="formerr" role="alert">${esc(u.error)}</p>` : ''}
+      <div class="proof rise" style="--i:5">
+        <div><b>Numbers, dates, currencies</b><span>checked deterministically — no model in the loop</span></div>
+        <div><b>Meaning, hedges, omissions</b><span>judged by the model, quoted from both passages</span></div>
+        <div><b>Sign-off report</b><span>locked until every Critical is decided</span></div>
+      </div>
+    </main>`;
   }
 
   // ----- Upload -----
