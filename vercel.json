@@ -6,5 +6,10 @@
       "includeFiles": "{backend,frontend,data/sample,data/cache}/**"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index?path=/$1"
+    }
+  ]
 }
