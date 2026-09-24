@@ -317,20 +317,15 @@
     return `${topbar(`<a class="toplink" href="#/upload">Check your own filing</a>`)}
     <main class="landing">
       <!-- One screen, one sentence, one button: the judge should understand the product before scrolling and be inside the demo on the first click. -->
-      <span class="eyebrow rise" style="--i:0"><span class="dot"></span>Bilingual filing consistency</span>
-      <h1 class="rise" style="--i:1">Catch what changed in translation.</h1>
-      <p class="lede rise" style="--i:2">Upload the two language versions of a regulatory filing. Concord aligns them section by section, finds every number, date and sentence that disagrees, and ranks each one by what can get someone fined.</p>
+      <span class="eyebrow rise" style="--i:0"><span class="dot"></span>For listed companies that file in two languages</span>
+      <h1 class="rise" style="--i:1">Don't tell the market one thing in English and another in Chinese.</h1>
+      <p class="lede rise" style="--i:2">Every HKEX announcement goes out twice, checked by eye, signed by one company secretary. Concord reads both versions, finds every number, date and sentence that disagrees, and hands you the sign-off for the board pack.</p>
       <div class="ctas rise" style="--i:3">
         <button class="pill primary lg" data-act="sample" ${u.busy ? 'disabled' : ''}>${u.busy ? 'Opening…' : 'Open the demo'} ${icon.arrowR || ''}</button>
         <a class="pill lg" href="#/upload">Check your own filing</a>
       </div>
-      <p class="fine rise" style="--i:4">The demo is an HKEX announcement in English and Chinese with five planted discrepancies. Any language pair works.</p>
+      <p class="fine rise" style="--i:4">Any language pair. HKEX, TSX, Euronext, SIX.</p>
       ${u.error ? `<p class="formerr" role="alert">${esc(u.error)}</p>` : ''}
-      <div class="proof rise" style="--i:5">
-        <div><b>Numbers, dates, currencies</b><span>checked deterministically — no model in the loop</span></div>
-        <div><b>Meaning, hedges, omissions</b><span>judged by the model, quoted from both passages</span></div>
-        <div><b>Sign-off report</b><span>locked until every Critical is decided</span></div>
-      </div>
     </main>`;
   }
 
