@@ -250,8 +250,7 @@
     Object.assign(f, patch);
     if (patch.status && patch.status !== 'dismissed') f.dismiss_reason = null;
     recount();
-    const advance = 'status' in patch;
-    if (advance) { state.dismissOpen = null; advanceSelection(fid); }
+    if ('status' in patch) state.dismissOpen = null;
     render();
     try {
       const res = await api.patch(state.run.run_id, fid, patch);
@@ -436,8 +435,7 @@
           ${list.map((f, i) => `<button class="frow rise" style="--i:${gi * 2 + Math.min(i, 6)}" role="option" data-act="select" data-fid="${f.id}" aria-selected="${f.id === state.selectedId}">
             <span class="dot ${sev}"></span>
             <span class="fbody"><span class="ftype">${esc(humanType(f.type))}</span>
-              <span class="fsec" title="${esc(f.section)}">${esc(f.section || '')}</span>
-              <span class="fpg">EN p.${f.en?.page ?? '–'} · ZH p.${f.zh?.page ?? '–'}</span></span>
+              <span class="fsec">${esc(f.explanation || '')}</span></span>
             <span class="glyph ${f.status}" aria-label="${f.status}">${glyphFor(f.status)}</span>
           </button>`).join('') || `<p class="fsec" style="padding:4px 20px 10px">None</p>`}
         </div></section>`;
@@ -457,7 +455,6 @@
         <span class="count"><span class="dot Critical"></span>Critical <span class="n">${c.critical ?? bySev('Critical').length}</span></span>
         <span class="count"><span class="dot Material"></span>Material <span class="n">${c.material ?? bySev('Material').length}</span></span>
         <span class="count"><span class="dot Cosmetic"></span>Cosmetic <span class="n">${c.cosmetic ?? bySev('Cosmetic').length}</span></span>
-        <span class="reviewed"><span class="t"><b>${rev}</b> of <b>${total}</b> reviewed</span><span class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${rev}"><i style="width:${total ? (rev / total) * 100 : 0}%"></i></span></span>
         <!-- Export is locked, not hidden: the lock is the product's promise (no sign-off with an undecided Critical) and the tooltip says exactly what unlocks it. -->
         <span class="export" title="${unlocked ? 'Open the sign-off report' : 'Decide every Critical finding to unlock'}">
           <button class="pill primary" data-act="export" ${unlocked ? '' : 'disabled aria-disabled="true"'}>Export sign-off</button>
@@ -469,10 +466,6 @@
     <div class="split">
       <nav class="rail" aria-label="Findings">
         ${groups}
-        <!-- Unaligned sections sit at the bottom in amber outline chips: they are listed, not findings, because nothing was compared, so they must not be counted as errors. -->
-        <div class="unal-box"><div class="grp-h" style="padding-left:0"><span class="dot" style="background:var(--unal)"></span>Unaligned sections <span class="n">${unal.length}</span></div>
-          <div class="chips">${unal.map(u => `<span class="chip unal" lang="${u.lang === 'zh' ? 'zh-Hant' : 'en'}" title="${esc(u.lang.toUpperCase())} p.${u.page}">${esc(u.heading)} <span class="faint mono">${esc(u.lang.toUpperCase())} p.${u.page}</span></span>`).join('') || '<span class="faint" style="font-size:12.5px">None</span>'}</div>
-          <p class="note">Unchecked, not wrong</p></div>
       </nav>
       <main class="pane">${detail()}</main>
     </div>`}`;
@@ -486,41 +479,47 @@
     let inner;
     if (sp && sp[0] >= 0 && sp[1] > sp[0] && sp[1] <= t.length) inner = `${esc(t.slice(0, sp[0]))}<mark>${esc(t.slice(sp[0], sp[1]))}</mark>${esc(t.slice(sp[1]))}`;
     else inner = esc(t);
-    return `<div class="passage" lang="${lang}">${inner}${sp ? '' : '<span class="absent">No span to highlight on this side</span>'}</div>`;
+    return `<div class="passage" lang="${lang}">${inner}</div>`;
   }
   function detail() {
-    const f = selected(); const id = state.run.run_id;
+    const f = selected();
     if (!f) return `<div class="empty"><p>Select a finding on the left.</p></div>`;
-    const pageBtn = (lang, n) => `<button class="pill xs" data-act="page" data-lang="${lang}" data-page="${n}" title="Open page ${n} thumbnail (Enter)"><span class="num">${esc(langName(lang))} · p.${n ?? '–'}</span></button>`;
     const decided = f.status !== 'unreviewed';
+    const reasonLabel = f.dismiss_reason ? (DISMISS_REASONS.find(r => r[0] === f.dismiss_reason)?.[1] || f.dismiss_reason) : '';
+    const verdict = f.status === 'confirmed' ? 'Confirmed — goes in the sign-off'
+      : f.status === 'dismissed' ? `Dismissed${reasonLabel ? ` — ${esc(reasonLabel)}` : ''}`
+      : 'Marked unresolved — parked for later';
     return `<div class="pane-in" data-fid="${f.id}">
-      <div class="crumb rise" style="--i:0"><span class="dot ${f.severity}"></span><span>${f.severity}</span><span class="faint">·</span><span class="sec">${esc(f.section || '')}</span></div>
-      <!-- Two passage columns, English left and Chinese right, in that fixed order: reviewers read the authoritative language first and the order never changes between findings. -->
+      <div class="crumb rise" style="--i:0"><span class="dot ${f.severity}"></span><span>${f.severity}</span><span class="faint">·</span><span>${esc(humanType(f.type))}</span></div>
+      <!-- Two passages side by side and nothing else around them: the reviewer reads the pair, then the sentence under it. Chrome was removed on purpose. -->
       <div class="cols">
-        <div class="col rise" style="--i:1"><div class="colh"><span lang="${langCode('en')}">${esc(langName('en'))}</span>${pageBtn('en', f.en?.page)}</div>${passage(f.en, langCode('en'))}</div>
-        <div class="col rise" style="--i:2"><div class="colh"><span lang="${langCode('zh')}">${esc(langName('zh'))}</span>${pageBtn('zh', f.zh?.page)}</div>${passage(f.zh, langCode('zh'))}</div>
+        <div class="col rise" style="--i:1">${passage(f.en, langCode('en'))}</div>
+        <div class="col rise" style="--i:2">${passage(f.zh, langCode('zh'))}</div>
       </div>
-      <!-- Explanation is one sentence in ink at body size: it is the thing the reviewer actually reads, so it outranks the badges below it. -->
       <p class="expl rise" style="--i:3">${esc(f.explanation || '')}</p>
-      <div class="meta rise" style="--i:4">
-        <span class="chip outline"><span class="dot ${f.severity}"></span>${esc(humanType(f.type))}</span>
-        <span class="chip" title="${f.source === 'deterministic' ? 'Found by exact number/date/currency checks' : 'Judged by the language model'}">${f.source === 'deterministic' ? 'Deterministic' : 'LLM'}</span>
-        <span class="conf">Confidence ${pct(f.confidence)}</span>
-        ${decided ? `<span class="decided" style="margin-left:auto">${glyphFor(f.status)} ${f.status[0].toUpperCase() + f.status.slice(1)}${f.dismiss_reason ? ` · ${esc(DISMISS_REASONS.find(r => r[0] === f.dismiss_reason)?.[1] || f.dismiss_reason)}` : ''}</span>` : ''}
-      </div>
-      <!-- Three decisions, one filled: Confirm is the expected path so it carries the accent; Dismiss and Unresolved stay hairline so the eye is never pulled to them. -->
-      <div class="actions rise" style="--i:5" role="group" aria-label="Decision">
-        <button class="pill primary" data-act="confirm" aria-pressed="${f.status === 'confirmed'}">Confirm <kbd>C</kbd></button>
+      ${decided ? `
+      <!-- Once decided the buttons go away and a single line says what happened; Undo brings them back. -->
+      <div class="verdict ${f.status} rise" style="--i:4" role="status">
+        <span class="vicon">${glyphFor(f.status)}</span><span class="vtext">${verdict}</span>
+        <span class="sp"></span>
+        <button class="pill ghost sm" data-act="undo">Undo</button>
+        ${nextUnreviewed(f.id) ? `<button class="pill sm" data-act="next">Next finding ${icon.arrow || '→'}</button>` : ''}
+      </div>` : `
+      <div class="actions rise" style="--i:4" role="group" aria-label="Decision">
+        <button class="pill primary" data-act="confirm">Confirm</button>
         ${state.dismissOpen === f.id ? `<span class="dismiss-sel"><label class="sr" for="dismiss-reason">Dismiss reason</label>
-          <select id="dismiss-reason" data-act="dismiss-reason" aria-label="Dismiss reason"><option value="">Reason for dismissing…</option>${DISMISS_REASONS.map(([v, l]) => `<option value="${v}" ${f.dismiss_reason === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+          <select id="dismiss-reason" data-act="dismiss-reason" aria-label="Dismiss reason" autofocus><option value="">Why dismiss it?</option>${DISMISS_REASONS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
           <button class="pill ghost sm" data-act="dismiss-cancel" aria-label="Cancel dismiss">Cancel</button></span>`
-        : `<button class="pill" data-act="dismiss" aria-pressed="${f.status === 'dismissed'}">Dismiss <kbd>D</kbd></button>`}
-        <button class="pill" data-act="unresolved" aria-pressed="${f.status === 'unresolved'}">Unresolved <kbd>U</kbd></button>
-        <span class="faint" style="font-size:12.5px;margin-left:auto">J / K to move · Enter for page · Esc to close</span>
-      </div>
-      <div class="notebox rise" style="--i:6"><label for="note-${f.id}">Note</label>
-        <textarea id="note-${f.id}" data-act="note" placeholder="Anything the signatory should know about this finding…" aria-label="Reviewer note">${esc(f.note || '')}</textarea></div>
+        : `<button class="pill" data-act="dismiss">Dismiss</button>`}
+        <button class="pill" data-act="unresolved">Unresolved</button>
+      </div>`}
+      <div class="notebox rise" style="--i:5"><label for="note-${f.id}">Note for the sign-off</label>
+        <textarea id="note-${f.id}" data-act="note" placeholder="Optional — anything the signatory should know" aria-label="Reviewer note">${esc(f.note || '')}</textarea></div>
     </div>`;
+  }
+  function nextUnreviewed(fromId) {
+    const order = visibleOrder(); const i = order.findIndex(f => f.id === fromId);
+    return order.slice(i + 1).concat(order.slice(0, i)).find(f => f.status === 'unreviewed') || null;
   }
 
   // ----- Report -----
@@ -600,6 +599,8 @@
       case 'select': select(el.dataset.fid); break;
       case 'page': openPage(el.dataset.lang, el.dataset.page); break;
       case 'confirm': if (selected()) decide(selected().id, { status: 'confirmed' }); break;
+      case 'undo': if (selected()) decide(selected().id, { status: 'unreviewed' }); break;
+      case 'next': { const n = selected() && nextUnreviewed(selected().id); if (n) select(n.id); break; }
       case 'unresolved': if (selected()) decide(selected().id, { status: 'unresolved' }); break;
       case 'dismiss': if (selected()) { state.dismissOpen = selected().id; render(); } break;
       case 'dismiss-cancel': state.dismissOpen = null; render(); break;

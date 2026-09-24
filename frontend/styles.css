@@ -190,7 +190,7 @@ kbd {
 .frow .dot { margin-top: 6px; }
 .frow .fbody { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .frow .ftype { font-size: 14px; font-weight: 500; color: var(--ink); }
-.frow .fsec { font-size: 12.5px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.frow .fsec { font-size: 12.5px; color: var(--soft); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .frow .fpg { font-size: 12px; color: var(--soft); font-family: var(--mono); font-variant-numeric: tabular-nums; margin-top: 2px; }
 .frow .glyph { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; color: var(--faint); flex: none; margin-top: 3px; }
 .frow .glyph.confirmed { color: var(--violet); background: var(--violet-tint); }
@@ -282,3 +282,17 @@ kbd {
   .zones { grid-template-columns: 1fr; }
   .topbar { padding: 0 16px; }
 }
+
+
+/* ----- decided state: the buttons leave, one line stays ----- */
+.verdict { margin-top: 20px; display: flex; align-items: center; gap: 10px; padding: 12px 14px 12px 16px; border-radius: var(--radius); background: var(--violet-tint); color: var(--ink); font-size: 14px; font-weight: 500; }
+.verdict.dismissed { background: var(--surface); }
+.verdict.unresolved { background: var(--mat-tint); }
+.verdict .vicon { width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; background: #fff; color: var(--violet); flex: none; }
+.verdict.dismissed .vicon { color: var(--soft); }
+.verdict.unresolved .vicon { color: var(--mat); }
+.verdict .sp { flex: 1; }
+.verdict .pill.sm { height: 32px; padding: 0 14px; font-size: 13px; }
+.verdict .pill.ghost { background: transparent; border: 0; color: var(--soft); }
+.verdict .pill.ghost:hover { color: var(--ink); background: rgba(0,0,0,.04); }
+.pane .crumb span:not(.dot):not(.faint):first-of-type { font-weight: 500; color: var(--ink); }
