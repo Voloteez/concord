@@ -11,10 +11,20 @@
     "authoritative_detected": true,
     "en_pages": 6,
     "zh_pages": 6,
-    "unreadable_pages": {"en": [], "zh": []},
+    "unreadable_pages": {
+      "en": [],
+      "zh": []
+    },
     "elapsed_s": 41.2
   },
-  "counts": {"critical": 3, "material": 2, "cosmetic": 3, "unaligned_sections": 1, "reviewed": 0, "total": 8},
+  "counts": {
+    "critical": 2,
+    "material": 3,
+    "cosmetic": 3,
+    "unaligned_sections": 1,
+    "reviewed": 0,
+    "total": 8
+  },
   "findings": [
     {
       "id": "f_001",
@@ -22,23 +32,23 @@
       "severity": "Critical",
       "source": "deterministic",
       "section": "THE ACQUISITION AGREEMENT — Consideration",
-      "en": {"page": 2, "text": "The Consideration is HK$12.4 million, payable in cash on Completion.", "span": [21, 36]},
-      "zh": {"page": 2, "text": "代價為港幣1,210萬元，於完成時以現金支付。", "span": [3, 12]},
+      "en": {
+        "page": 2,
+        "text": "The Consideration is HK$12.4 million, payable in cash on Completion.",
+        "span": [
+          21,
+          36
+        ]
+      },
+      "zh": {
+        "page": 2,
+        "text": "代價為港幣1,210萬元，於完成時以現金支付。",
+        "span": [
+          3,
+          12
+        ]
+      },
       "explanation": "English states HK$12.4 million; Chinese states HK$12.1 million.",
-      "confidence": 1.0,
-      "status": "unreviewed",
-      "dismiss_reason": null,
-      "note": null
-    },
-    {
-      "id": "f_002",
-      "type": "DATE_MISMATCH",
-      "severity": "Critical",
-      "source": "deterministic",
-      "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
-      "en": {"page": 3, "text": "If the Conditions are not fulfilled on or before 31 December 2026 (the \"Long Stop Date\"), the Agreement shall lapse.", "span": [49, 65]},
-      "zh": {"page": 3, "text": "倘條件未能於二零二六年十一月三十日（「最後截止日期」）或之前達成，本協議將告失效。", "span": [6, 17]},
-      "explanation": "English long stop date is 31 December 2026; Chinese is 30 November 2026.",
       "confidence": 1.0,
       "status": "unreviewed",
       "dismiss_reason": null,
@@ -50,8 +60,19 @@
       "severity": "Critical",
       "source": "llm",
       "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
-      "en": {"page": 3, "text": "(c) the Independent Shareholders having approved the Acquisition at the EGM.", "span": [0, 75]},
-      "zh": {"page": 3, "text": "(b) 賣方已就收購事項取得所有必要的第三方同意；", "span": null},
+      "en": {
+        "page": 3,
+        "text": "(c) the Independent Shareholders having approved the Acquisition at the EGM.",
+        "span": [
+          0,
+          75
+        ]
+      },
+      "zh": {
+        "page": 3,
+        "text": "(b) 賣方已就收購事項取得所有必要的第三方同意；",
+        "span": null
+      },
       "explanation": "Condition (c), Independent Shareholders' approval at the EGM, is absent from the Chinese version.",
       "confidence": 0.94,
       "status": "unreviewed",
@@ -59,15 +80,29 @@
       "note": null
     },
     {
-      "id": "f_004",
-      "type": "HEDGE_CHANGE",
+      "id": "f_002",
+      "type": "MEANING_SHIFT",
       "severity": "Material",
       "source": "llm",
-      "section": "REASONS FOR AND BENEFITS OF THE ACQUISITION",
-      "en": {"page": 4, "text": "Following Completion, the Group may consider further acquisitions in the logistics sector.", "span": [32, 44]},
-      "zh": {"page": 4, "text": "完成後，本集團將考慮於物流行業進行進一步收購。", "span": [7, 10]},
-      "explanation": "English is conditional (may consider); Chinese is definite (將考慮, will consider).",
-      "confidence": 0.91,
+      "section": "INTRODUCTION",
+      "en": {
+        "page": 1,
+        "text": "The Agreement follows a non-binding memorandum of understanding signed by the Company and the Vendor on 8 August 2026, the terms of which are superseded in their entirety by the Agreement.",
+        "span": [
+          24,
+          35
+        ]
+      },
+      "zh": {
+        "page": 1,
+        "text": "本協議乃繼本公司與賣方於二零二六年八月八日簽署的具約束力諒解備忘錄後訂立，該備忘錄的條款已全部由本協議取代。",
+        "span": [
+          24,
+          28
+        ]
+      },
+      "explanation": "English describes the memorandum as non-binding; Chinese describes it as binding (具約束力).",
+      "confidence": 0.93,
       "status": "unreviewed",
       "dismiss_reason": null,
       "note": null
@@ -78,10 +113,52 @@
       "severity": "Material",
       "source": "llm",
       "section": "THE ACQUISITION AGREEMENT — Consideration",
-      "en": {"page": 2, "text": "The Company shall procure the payment of the Consideration from its internal resources.", "span": [0, 11]},
-      "zh": {"page": 2, "text": "本集團須以內部資源促使支付代價。", "span": [0, 3]},
+      "en": {
+        "page": 2,
+        "text": "The Company shall procure the payment of the Consideration from its internal resources.",
+        "span": [
+          0,
+          11
+        ]
+      },
+      "zh": {
+        "page": 2,
+        "text": "本集團須以內部資源促使支付代價。",
+        "span": [
+          0,
+          3
+        ]
+      },
       "explanation": "The obligation sits with the Company in English but with the Group (本集團) in Chinese.",
       "confidence": 0.88,
+      "status": "unreviewed",
+      "dismiss_reason": null,
+      "note": null
+    },
+    {
+      "id": "f_004",
+      "type": "HEDGE_CHANGE",
+      "severity": "Material",
+      "source": "llm",
+      "section": "REASONS FOR AND BENEFITS OF THE ACQUISITION",
+      "en": {
+        "page": 4,
+        "text": "Following Completion, the Group may consider further acquisitions in the logistics sector.",
+        "span": [
+          32,
+          44
+        ]
+      },
+      "zh": {
+        "page": 4,
+        "text": "完成後，本集團將考慮於物流行業進行進一步收購。",
+        "span": [
+          7,
+          10
+        ]
+      },
+      "explanation": "English is conditional (may consider); Chinese is definite (將考慮, will consider).",
+      "confidence": 0.91,
       "status": "unreviewed",
       "dismiss_reason": null,
       "note": null
@@ -92,8 +169,16 @@
       "severity": "Cosmetic",
       "source": "llm",
       "section": "INFORMATION ON THE TARGET",
-      "en": {"page": 4, "text": "The Target is principally engaged in the provision of freight forwarding and warehousing services in Hong Kong.", "span": null},
-      "zh": {"page": 4, "text": "目標公司主要於香港從事貨運代理及倉儲服務。", "span": null},
+      "en": {
+        "page": 4,
+        "text": "The Target is principally engaged in the provision of freight forwarding and warehousing services in Hong Kong.",
+        "span": null
+      },
+      "zh": {
+        "page": 4,
+        "text": "目標公司主要於香港從事貨運代理及倉儲服務。",
+        "span": null
+      },
       "explanation": "Equivalent in meaning; the Chinese drops \"the provision of\", which carries no content.",
       "confidence": 0.72,
       "status": "unreviewed",
@@ -106,8 +191,22 @@
       "severity": "Cosmetic",
       "source": "deterministic",
       "section": "INFORMATION ON THE TARGET",
-      "en": {"page": 4, "text": "For the year ended 31 December 2025, the Target recorded revenue of approximately HK$48,200,000.", "span": [82, 95]},
-      "zh": {"page": 4, "text": "截至二零二五年十二月三十一日止年度，目標公司錄得收益約港幣4,820萬元。", "span": [28, 37]},
+      "en": {
+        "page": 4,
+        "text": "For the year ended 31 December 2025, the Target recorded revenue of approximately HK$48,200,000.",
+        "span": [
+          82,
+          95
+        ]
+      },
+      "zh": {
+        "page": 4,
+        "text": "截至二零二五年十二月三十一日止年度，目標公司錄得收益約港幣4,820萬元。",
+        "span": [
+          28,
+          37
+        ]
+      },
       "explanation": "Same value, different notation: HK$48,200,000 vs 港幣4,820萬元.",
       "confidence": 1.0,
       "status": "unreviewed",
@@ -120,8 +219,16 @@
       "severity": "Cosmetic",
       "source": "llm",
       "section": "GENERAL",
-      "en": {"page": 6, "text": "Shareholders and potential investors should exercise caution when dealing in the Shares.", "span": null},
-      "zh": {"page": 6, "text": "股東及潛在投資者於買賣股份時務請審慎行事。", "span": null},
+      "en": {
+        "page": 6,
+        "text": "Shareholders and potential investors should exercise caution when dealing in the Shares.",
+        "span": null
+      },
+      "zh": {
+        "page": 6,
+        "text": "股東及潛在投資者於買賣股份時務請審慎行事。",
+        "span": null
+      },
       "explanation": "Boilerplate cross-reference to the circular timetable appears only in English.",
       "confidence": 0.66,
       "status": "unreviewed",
@@ -130,18 +237,52 @@
     }
   ],
   "unaligned_sections": [
-    {"lang": "zh", "heading": "釋義補充", "page": 6}
+    {
+      "lang": "zh",
+      "heading": "釋義補充",
+      "page": 6
+    }
   ],
   "glossary": [
-    {"en": "the Company", "zh": "本公司"},
-    {"en": "the Group", "zh": "本集團"},
-    {"en": "the Acquisition", "zh": "收購事項"},
-    {"en": "the Target", "zh": "目標公司"},
-    {"en": "the Vendor", "zh": "賣方"},
-    {"en": "Completion", "zh": "完成"},
-    {"en": "Consideration", "zh": "代價"},
-    {"en": "Long Stop Date", "zh": "最後截止日期"},
-    {"en": "Independent Shareholders", "zh": "獨立股東"},
-    {"en": "EGM", "zh": "股東特別大會"}
+    {
+      "en": "the Company",
+      "zh": "本公司"
+    },
+    {
+      "en": "the Group",
+      "zh": "本集團"
+    },
+    {
+      "en": "the Acquisition",
+      "zh": "收購事項"
+    },
+    {
+      "en": "the Target",
+      "zh": "目標公司"
+    },
+    {
+      "en": "the Vendor",
+      "zh": "賣方"
+    },
+    {
+      "en": "Completion",
+      "zh": "完成"
+    },
+    {
+      "en": "Consideration",
+      "zh": "代價"
+    },
+    {
+      "en": "Long Stop Date",
+      "zh": "最後截止日期"
+    },
+    {
+      "en": "Independent Shareholders",
+      "zh": "獨立股東"
+    },
+    {
+      "en": "EGM",
+      "zh": "股東特別大會"
+    }
   ]
 }

@@ -78,6 +78,13 @@ DOC = [
      "條件同意收購，而賣方有條件同意出售銷售股份（相當於目標公司已發行股本的60%），總代價為港幣"
      "12,400,000元。"),
     ("p",
+     # PLANT 2: non-binding -> 具約束力 (binding)
+     "The Agreement follows a non-binding memorandum of understanding signed by the Company and "
+     "the Vendor on 8 August 2026, the terms of which are superseded in their entirety by the "
+     "Agreement.",
+     "本協議乃繼本公司與賣方於二零二六年八月八日簽署的具約束力諒解備忘錄後訂立，該備忘錄的條款已"
+     "全部由本協議取代。"),
+    ("p",
      "The Acquisition constitutes a discloseable and connected transaction of the Company and "
      "is subject to the reporting, announcement, circular and Independent Shareholders' "
      "approval requirements under Chapter 14 and Chapter 14A of the Listing Rules.",
@@ -181,11 +188,10 @@ DOC = [
      "本公司可全權酌情豁免有關賣方所作保證的條件。其他條件概不可獲豁免。於本公告日期，概無條件已獲達"
      "成。"),
     ("p",
-     # PLANT 2: 31 December 2026 -> 二零二六年十一月三十日
      "If the Conditions are not fulfilled on or before 31 December 2026 (the \"Long Stop "
      "Date\"), the Agreement shall lapse. Upon the Agreement lapsing, neither party shall "
      "have any claim against the other save for any antecedent breach.",
-     "倘條件未能於二零二六年十一月三十日（「最後截止日期」）或之前達成，本協議將告失效。本協議失效後，"
+     "倘條件未能於二零二六年十二月三十一日（「最後截止日期」）或之前達成，本協議將告失效。本協議失效後，"
      "任何一方概無權向另一方提出任何申索，惟先前的違約除外。"),
     ("h2", "Completion", "完成"),
     ("p",
@@ -489,11 +495,11 @@ PLANTS = [
      "en_snippet": "The Consideration is HK$12.4 million, payable in cash on Completion.",
      "zh_snippet": "代價為港幣1,210萬元，於完成時以現金支付。",
      "note": "HK$12.4 million in English; HK$12.1 million (1,210萬) in Chinese."},
-    {"plant": 2, "type": "DATE_MISMATCH", "expected_severity": "Critical",
-     "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
-     "en_snippet": "If the Conditions are not fulfilled on or before 31 December 2026 (the \"Long Stop Date\"), the Agreement shall lapse.",
-     "zh_snippet": "倘條件未能於二零二六年十一月三十日（「最後截止日期」）或之前達成，本協議將告失效。",
-     "note": "Long stop date 31 December 2026 in English; 30 November 2026 in Chinese."},
+    {"plant": 2, "type": "MEANING_SHIFT", "expected_severity": "Material",
+     "section": "INTRODUCTION",
+     "en_snippet": "The Agreement follows a non-binding memorandum of understanding signed by the Company and the Vendor on 8 August 2026, the terms of which are superseded in their entirety by the Agreement.",
+     "zh_snippet": "本協議乃繼本公司與賣方於二零二六年八月八日簽署的具約束力諒解備忘錄後訂立，該備忘錄的條款已全部由本協議取代。",
+     "note": "non-binding in English; 具約束力 (binding) in Chinese."},
     {"plant": 3, "type": "OMISSION_MATERIAL", "expected_severity": "Critical",
      "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
      "en_snippet": "(c) the Independent Shareholders having approved the Acquisition at the EGM.",

@@ -20,12 +20,12 @@
     },
     {
       "plant": 2,
-      "type": "DATE_MISMATCH",
-      "expected_severity": "Critical",
-      "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
-      "en_snippet": "If the Conditions are not fulfilled on or before 31 December 2026 (the \"Long Stop Date\"), the Agreement shall lapse.",
-      "zh_snippet": "倘條件未能於二零二六年十一月三十日（「最後截止日期」）或之前達成，本協議將告失效。",
-      "note": "Long stop date 31 December 2026 in English; 30 November 2026 in Chinese."
+      "type": "MEANING_SHIFT",
+      "expected_severity": "Material",
+      "section": "INTRODUCTION",
+      "en_snippet": "The Agreement follows a non-binding memorandum of understanding signed by the Company and the Vendor on 8 August 2026, the terms of which are superseded in their entirety by the Agreement.",
+      "zh_snippet": "本協議乃繼本公司與賣方於二零二六年八月八日簽署的具約束力諒解備忘錄後訂立，該備忘錄的條款已全部由本協議取代。",
+      "note": "non-binding in English; 具約束力 (binding) in Chinese."
     },
     {
       "plant": 3,
