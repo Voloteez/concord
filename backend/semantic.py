@@ -355,6 +355,12 @@ def _neighbour_text(sec: dict, sid: str, lang: str, own_ids: list[str], idx_othe
     return "", None
 
 
+def _full_text(idx: dict, cap: int = 16000) -> str:
+    parts = [(v.get("text") or "") for _, v in sorted(idx.items(), key=lambda kv: _sid_num(kv[0]))]
+    out = "\n".join(t for t in parts if t)
+    return out[:cap]
+
+
 def _omission_user(sec: dict, authoritative: str, glossary: list[dict], en_ids: list[str], zh_ids: list[str],
                    idx_en: dict, idx_zh: dict, unpaired: list[dict]) -> str:
     auth = authoritative if authoritative in ("EN", "ZH") else "none"
@@ -364,6 +370,13 @@ def _omission_user(sec: dict, authoritative: str, glossary: list[dict], en_ids: 
     lines += [f"[{sid}] {(idx_en.get(sid) or {}).get('text', '')}" for sid in en_ids]
     lines += ["", "Chinese section:"]
     lines += [f"[{sid}] {(idx_zh.get(sid) or {}).get('text', '')}" for sid in zh_ids]
+    # content often moves across headings (signature blocks, director lists, boilerplate), so the
+    # judge also sees the whole other-side document, not just this section
+    langs = {u["lang"] for u in unpaired}
+    if "en" in langs:
+        lines += ["", "Full Chinese document (search here before calling anything absent):", _full_text(idx_zh)]
+    if "zh" in langs:
+        lines += ["", "Full English document (search here before calling anything absent):", _full_text(idx_en)]
     lines += ["", "Unpaired sentences to judge:"]
     for u in unpaired:
         idx = idx_en if u["lang"] == "en" else idx_zh

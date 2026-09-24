@@ -151,12 +151,13 @@ def extract_dates_zh(text: str) -> list[Date]:
 # ---------------------------------------------------------------------------
 
 _EN_CUR = [
-    ("HKD", re.compile(r"HK\$|\bHKD\b|\bHong\s+Kong\s+dollars?\b", re.I)),
-    ("CNY", re.compile(r"\bRMB\b|\bCNY\b|\bRenminbi\b", re.I)),
-    ("USD", re.compile(r"US\$|U\.S\.\$|\bUSD\b|\bU\.?S\.?\s+dollars?\b|\bUnited\s+States\s+dollars?\b", re.I)),
-    ("CAD", re.compile(r"C\$|CA\$|\bCAD\b|\bCanadian\s+dollars?\b", re.I)),
-    ("EUR", re.compile(r"€|\bEUR\b|\beuros?\b", re.I)),
-    ("GBP", re.compile(r"£|\bGBP\b|\bpounds?\s+sterling\b|\bBritish\s+pounds?\b", re.I)),
+    # ISO codes are glued to digits in filings (RMB9,300,000, HKD1.2 million): no trailing \b
+    ("HKD", re.compile(r"HK\$|\bHKD(?![A-Za-z])|\bHong\s+Kong\s+dollars?\b", re.I)),
+    ("CNY", re.compile(r"\bRMB(?![A-Za-z])|\bCNY(?![A-Za-z])|\bRenminbi\b", re.I)),
+    ("USD", re.compile(r"US\$|U\.S\.\$|\bUSD(?![A-Za-z])|\bU\.?S\.?\s+dollars?\b|\bUnited\s+States\s+dollars?\b", re.I)),
+    ("CAD", re.compile(r"C\$|CA\$|\bCAD(?![A-Za-z])|\bCanadian\s+dollars?\b", re.I)),
+    ("EUR", re.compile(r"€|\bEUR(?![A-Za-z])|\beuros?\b", re.I)),
+    ("GBP", re.compile(r"£|\bGBP(?![A-Za-z])|\bpounds?\s+sterling\b|\bBritish\s+pounds?\b", re.I)),
 ]
 _ZH_CUR = [
     ("HKD", re.compile(r"港幣|港元")),
@@ -265,7 +266,7 @@ def extract_numbers_en(text: str, date_spans: list[tuple[int, int]] | None = Non
         if _EN_REF_BEFORE.search(before):
             continue
         # a decimal like 14.07 immediately preceded by a letter/digit-dot ref (e.g. "14A.76") -> skip
-        if num_s > 0 and re.match(r"[A-Za-z0-9.]", src[num_s - 1]):
+        if num_s > 0 and re.match(r"[A-Za-z0-9.]", src[num_s - 1]) and not (m.group("cur") or m.group("cur2")):
             continue
         # list markers "(1)" "(2)" : parenthesised 1-2 digit ints with no comma/decimal
         raw_num = m.group("num")
@@ -311,6 +312,10 @@ def extract_numbers_zh(text: str, date_spans: list[tuple[int, int]] | None = Non
 
     # Arabic digits with optional 萬/億 multiplier, currency prefix, 元 suffix
     for m in _ZH_NUM.finditer(src):
+        _ns, _ne = m.span("num")
+        if src[max(0, _ns - 1):_ns] == "第" or re.match(r"[A-Za-z]|[章條项項款節段]", src[_ne:_ne + 1] or "") \
+                or re.match(r"[A-Za-z]?[章條项項款節段]", src[_ne:_ne + 2] or ""):
+            continue
         s, e = m.span()
         if not free(s, e):
             continue
@@ -318,7 +323,7 @@ def extract_numbers_zh(text: str, date_spans: list[tuple[int, int]] | None = Non
         # clause references: 第14.07(1)條, 14A.76
         if re.match(r"[A-Za-z]", src[num_e:num_e + 1]) or re.match(r"\(\d|（\d", src[num_e:num_e + 2]):
             continue
-        if num_s > 0 and re.match(r"[A-Za-z0-9.]", src[num_s - 1]):
+        if num_s > 0 and re.match(r"[A-Za-z0-9.]", src[num_s - 1]) and not (m.group("cur") or m.group("cur2")):
             continue
         # list markers "(1)" / "（1）" with no multiplier
         raw_num = m.group("num")
@@ -462,18 +467,17 @@ def check_pair(en_text: str, zh_text: str) -> list[dict]:
         used_zh.add(hit)
         b = zh_nums[hit]
         # same value, different notation (plain digits vs scaled word) -> FORMAT
-        if {a.kind, b.kind} == {"plain", "scaled"}:
-            found.append({
-                "type": "FORMAT",
-                "en_span": list(a.span), "zh_span": list(b.span),
-                "explanation": f"Same value, different notation: {a.raw} vs {b.raw}.",
-            })
+        # plain digits vs 萬/億 notation is the normal HK bilingual convention — not a finding.
     unmatched_zh = [b for j, b in enumerate(zh_nums) if j not in used_zh]
 
     # stock-code / year-looking integers that both sides carry are already matched above; a stray
     # year on one side only is almost always a date fragment, so drop those rather than flag them.
     unmatched_en = [n for n in unmatched_en if not _is_yearish(n)]
     unmatched_zh = [n for n in unmatched_zh if not _is_yearish(n)]
+    # a bare digit string that appears verbatim on the other side (Chapter 14 / 第14章) is a reference
+    def _digits(n): return re.sub(r"[^\d.]", "", n.raw or "")
+    unmatched_en = [n for n in unmatched_en if not (_digits(n) and _digits(n) in zh_text and n.kind == "plain")]
+    unmatched_zh = [n for n in unmatched_zh if not (_digits(n) and _digits(n) in en_text and n.kind == "plain")]
 
     cur_code = _cur_of(en_nums, en_cur) or _cur_of(zh_nums, zh_cur)
     while unmatched_en or unmatched_zh:

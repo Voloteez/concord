@@ -36,7 +36,8 @@ h3{font-size:11pt}
 .titles{margin:18px 0 6px;font-size:12pt;color:#181925;font-weight:500}
 .titles .zh{display:block;margin-top:2px;color:#3f3f46;font-weight:400}
 .meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 32px;margin-top:22px;font-size:10pt}
-.meta div span:first-child{display:inline-block;min-width:150px;color:#737373}
+.meta div{display:grid;grid-template-columns:120px 1fr;gap:0 12px;align-items:baseline}
+.meta div span:first-child{color:#737373}
 .meta div span:last-child{color:#181925}
 .counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:26px}
 .tile{border:1px solid #e8e8e8;border-radius:12px;padding:12px 14px;background:#fff}

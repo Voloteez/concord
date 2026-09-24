@@ -31,13 +31,8 @@ def test_number_plant_12_4m_vs_1210wan_flagged():
 def test_48_200_000_vs_4820wan_is_format_not_mismatch():
     en = "For the year ended 31 December 2025, the Target recorded revenue of approximately HK$48,200,000."
     zh = "截至二零二五年十二月三十一日止年度，目標公司錄得收益約港幣4,820萬元。"
-    found = check_pair(en, zh)
-    assert _types(found) == ["FORMAT"], found
-    f = found[0]
-    assert _sub(en, f["en_span"]) == "HK$48,200,000"
-    assert _sub(zh, f["zh_span"]) == "港幣4,820萬元"
-    # the date matches on both sides and must not be flagged
-    assert "DATE_MISMATCH" not in _types(found)
+    # plain digits vs 萬 notation is the normal HK convention: same value, no finding at all
+    assert check_pair(en, zh) == []
 
 
 def test_date_plant_flagged():
@@ -83,8 +78,8 @@ def test_scaled_forms_and_negatives():
     en = "Revenue was HK$1.5 billion and the loss was HK$(1,200) thousand; 12,400,000 shares were issued."
     zh = "收益為港幣15億元，虧損為港幣(1,200)千元；已發行1,240萬股。"
     found = check_pair(en, zh)
-    # 12,400,000 vs 1,240萬 -> FORMAT only; everything else matches
-    assert _types(found) == ["FORMAT"], found
+    # 12,400,000 vs 1,240萬 is the same value; everything else matches -> nothing
+    assert found == [], found
 
 
 def test_mdy_and_slash_dates():
@@ -146,3 +141,23 @@ if __name__ == "__main__":
                 print(f"FAIL  {name}: {type(e).__name__}: {e}")
     print("all passed" if not failed else f"{failed} failed")
     sys.exit(1 if failed else 0)
+
+
+def test_rule_and_chapter_references_ignored():
+    en = "subject to the requirements under Chapter 14 and Chapter 14A of the Listing Rules (Rule 14.07)."
+    zh = "須遵守上市規則第14章及第14A章項下的規定（第14.07條）。"
+    assert check_pair(en, zh) == []
+    assert check_pair('"SFO" means the Securities and Futures Ordinance (Chapter 571 of the Laws of Hong Kong)',
+                      "「證券及期貨條例」指香港法例第571章證券及期貨條例") == []
+
+
+def test_currency_code_prefixed_numbers_match():
+    en = "a registered capital of RMB5,000,000, and approximately RMB9,300,000 (equivalent to approximately HK$10,100,000)."
+    zh = "註冊資本為人民幣5,000,000元，約人民幣930萬元（相當於約港幣1,010萬元）。"
+    assert check_pair(en, zh) == []
+
+
+def test_currency_code_glued_to_digits_is_detected():
+    en = "approximately RMB9,300,000 (equivalent to approximately HK$10,100,000) was derived from the PRC subsidiary."
+    zh = "約人民幣930萬元（相當於約港幣1,010萬元）來自中國附屬公司。"
+    assert check_pair(en, zh) == []

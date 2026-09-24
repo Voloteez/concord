@@ -101,7 +101,17 @@ def run_pipeline(run_id: str, on_progress) -> None:
     if override not in ("EN", "ZH", "none"):
         override = None
 
+    # cached replays finish in well under a second; hold each stage on screen briefly so the
+    # progress list stays readable (CONCORD_MIN_STAGE_S=0 to disable)
+    min_stage = float(os.environ.get("CONCORD_MIN_STAGE_S", "0.9"))
+    stage_started: dict[str, float] = {}
+
     def progress(stage, label, done=False, detail=None):
+        stage_started.setdefault(stage, time.time())
+        if done and stage != "done":
+            wait = min_stage - (time.time() - stage_started[stage])
+            if wait > 0:
+                time.sleep(wait)
         try:
             on_progress(stage, label, done, detail)
         except Exception:
