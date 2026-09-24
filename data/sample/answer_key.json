@@ -1,0 +1,79 @@
+{
+  "pair": {
+    "en": "data/sample/en.pdf",
+    "zh": "data/sample/zh.pdf",
+    "authoritative": "EN"
+  },
+  "company": "Meridian Pacific Holdings Limited",
+  "stock_code": "1877",
+  "en_title": "DISCLOSEABLE AND CONNECTED TRANSACTION — ACQUISITION OF 60% EQUITY INTEREST IN HARBOUR LOGISTICS LIMITED",
+  "zh_title": "須予披露及關連交易 — 收購海港物流有限公司60%股權",
+  "expected_findings": [
+    {
+      "plant": 1,
+      "type": "NUMBER_MISMATCH",
+      "expected_severity": "Critical",
+      "section": "THE ACQUISITION AGREEMENT — Consideration",
+      "en_snippet": "The Consideration is HK$12.4 million, payable in cash on Completion.",
+      "zh_snippet": "代價為港幣1,210萬元，於完成時以現金支付。",
+      "note": "HK$12.4 million in English; HK$12.1 million (1,210萬) in Chinese."
+    },
+    {
+      "plant": 2,
+      "type": "DATE_MISMATCH",
+      "expected_severity": "Critical",
+      "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
+      "en_snippet": "If the Conditions are not fulfilled on or before 31 December 2026 (the \"Long Stop Date\"), the Agreement shall lapse.",
+      "zh_snippet": "倘條件未能於二零二六年十一月三十日（「最後截止日期」）或之前達成，本協議將告失效。",
+      "note": "Long stop date 31 December 2026 in English; 30 November 2026 in Chinese."
+    },
+    {
+      "plant": 3,
+      "type": "OMISSION_MATERIAL",
+      "expected_severity": "Critical",
+      "section": "THE ACQUISITION AGREEMENT — Conditions precedent",
+      "en_snippet": "(c) the Independent Shareholders having approved the Acquisition at the EGM.",
+      "zh_snippet": "(b) 賣方已就收購事項取得所有必要的第三方同意；",
+      "note": "Condition (c) is absent from the Chinese list, which is relettered (a)(b)(c). zh_snippet is the nearest neighbour."
+    },
+    {
+      "plant": 4,
+      "type": "HEDGE_CHANGE",
+      "expected_severity": "Material",
+      "section": "REASONS FOR AND BENEFITS OF THE ACQUISITION",
+      "en_snippet": "Following Completion, the Group may consider further acquisitions in the logistics sector.",
+      "zh_snippet": "完成後，本集團將考慮於物流行業進行進一步收購。",
+      "note": "may consider (conditional) became 將考慮 (definite)."
+    },
+    {
+      "plant": 5,
+      "type": "MEANING_SHIFT",
+      "expected_severity": "Material",
+      "section": "THE ACQUISITION AGREEMENT — Consideration",
+      "en_snippet": "The Company shall procure the payment of the Consideration from its internal resources.",
+      "zh_snippet": "本集團須以內部資源促使支付代價。",
+      "note": "Obligation sits with the Company in English but the Group (本集團) in Chinese."
+    }
+  ],
+  "control": {
+    "plant": 6,
+    "type": "CONTROL",
+    "expected_severity": null,
+    "section": "INFORMATION ON THE VENDOR",
+    "en_snippet": "The Vendor is wholly owned by Mr. Chan Wai Kwong, a non-executive Director. Mr. Chan has over 25 years of experience in the logistics industry in Hong Kong and founded the Target in 2011.",
+    "zh_snippet": "陳偉光先生於香港物流行業擁有逾25年經驗，並於二零一一年創立目標公司。賣方由非執行董事陳偉光先生全資擁有。",
+    "note": "Two adjacent sentences appear in swapped order in Chinese; content identical. Must NOT be flagged."
+  },
+  "unaligned_sections": [
+    {
+      "lang": "zh",
+      "heading": "釋義補充",
+      "zh_snippet": "本公告內若干公司及人士的中文名稱僅為其英文名稱的譯名，僅供識別之用。",
+      "note": "Chinese-only sub-heading near the end; expected to surface as one unaligned section."
+    }
+  ],
+  "notes": [
+    "Only the five planted findings above are genuine discrepancies; the control must read as EQUIVALENT.",
+    "Cosmetic FORMAT/WORDING findings such as HK$48,200,000 vs 港幣4,820萬元 are acceptable noise, not errors."
+  ]
+}
